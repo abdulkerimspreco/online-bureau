@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  JOB_SEEKER
+  EMPLOYER
+  ADMIN
+}
+
+enum CVVisibility {
+  PRIVATE
+  PUBLIC
+  COMPANY_ONLY
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String
+  role             UserRole
+  isVerified       Boolean  @default(false)
+  failedLoginAttempts Int   @default(0)
+  lockoutUntil     DateTime?
+  authTokenVersion Int      @default(0)
+  passwordResetToken String? @unique
+  passwordResetTokenExpiresAt DateTime?
+  verificationToken String? @unique
+  verificationTokenExpiresAt DateTime?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  jobSeekerProfile JobSeekerProfile?
+  employerProfile  EmployerProfile?
+  cv               Cv?
+}
+
+model JobSeekerProfile {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  displayName            String
+  location               String
+  preferredJobCategories String?
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmployerProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  companyName String
+  description String?
+  website     String?
+  industry    String
+  companySize String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Cv {
+  id         String       @id @default(uuid())
+  userId     String       @unique
+  fileName   String
+  fileUrl    String
+  mimeType   String
+  fileSize   Int
+  visibility CVVisibility @default(PRIVATE)
+
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags       CVTag[]
+}
+
+model Tag {
+  id    String  @id @default(uuid())
+  name  String  @unique
+
+  cvs   CVTag[]
+}
+
+model CVTag {
+  cvId  String
+  tagId String
+
+  cv    Cv   @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  tag   Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([cvId, tagId])
+}
