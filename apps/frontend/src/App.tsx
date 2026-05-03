@@ -5,18 +5,15 @@ import LoginPage from "./pages/LoginPage";
 import RegisterJobSeekerPage from "./pages/RegisterJobSeekerPage";
 import RegisterEmployerPage from "./pages/RegisterEmployerPage";
 import JobSeekerDashboardPage from "./pages/JobSeekerDashboardPage";
-import EmployerDashboardPage from "./pages/EmployerDashboardPage";
 import CvPage from "./pages/CvPage";
 import TagsPage from './pages/TagsPage';
 import JobSeekerProfilePage from './pages/JobSeekerProfilePage';
-import EmployerProfilePage from './pages/EmployerProfilePage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import VerifyEmailSentPage from './pages/VerifyEmailSentPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import EmployerSearchPage from './pages/EmployerSearchPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -26,7 +23,6 @@ function HomeRedirect() {
   }
 
   if (!isAuthenticated) {
-    console.log("heloo");
     return <Navigate to="/login" replace />;
   }
 
@@ -35,7 +31,7 @@ function HomeRedirect() {
   }
 
   if (user?.role === "EMPLOYER") {
-    return <Navigate to="/employer/dashboard" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <div style={{ padding: "2rem" }}>Unknown role</div>;
@@ -66,12 +62,6 @@ export default function App() {
         />
         <Route path="/job-seeker/cv" element={<CvPage />} />
         <Route path="/job-seeker/tags" element={<TagsPage />} />
-      </Route>
-
-      <Route element={<ProtectedRoute allowedRoles={["EMPLOYER"]} />}>
-        <Route path="/employer/dashboard" element={<EmployerDashboardPage />} />
-        <Route path="/employer/profile" element={<EmployerProfilePage />} />
-        <Route path="/employer/search" element={<EmployerSearchPage />} />
       </Route>
     </Routes>
   );
