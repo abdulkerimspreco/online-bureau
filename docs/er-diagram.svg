@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Online Bureau ER Diagram</title>
+  <desc id="desc">Entity relationship diagram for the Online Bureau database schema.</desc>
+  <style>
+    .bg { fill: #f8fafc; }
+    .entity { fill: #ffffff; stroke: #0f172a; stroke-width: 2; rx: 12; ry: 12; }
+    .header { fill: #0f172a; rx: 12; ry: 12; }
+    .title { fill: #ffffff; font: 700 20px Arial, sans-serif; }
+    .field { fill: #0f172a; font: 14px Arial, sans-serif; }
+    .enum { fill: #334155; font: 13px Arial, sans-serif; }
+    .label { fill: #475569; font: 13px Arial, sans-serif; }
+    .line { stroke: #1e293b; stroke-width: 2.5; fill: none; }
+    .crow { stroke: #1e293b; stroke-width: 2.5; fill: none; }
+    .note { fill: #fff7ed; stroke: #fb923c; stroke-width: 1.5; rx: 10; ry: 10; }
+    .note-text { fill: #9a3412; font: 13px Arial, sans-serif; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1600" height="980" />
+
+  <g transform="translate(70 70)">
+    <rect class="entity" width="350" height="285" />
+    <rect class="header" width="350" height="46" />
+    <text class="title" x="18" y="29">User</text>
+    <text class="field" x="18" y="74">PK id : String (uuid)</text>
+    <text class="field" x="18" y="98">email : String (unique)</text>
+    <text class="field" x="18" y="122">passwordHash : String</text>
+    <text class="field" x="18" y="146">role : UserRole</text>
+    <text class="field" x="18" y="170">isVerified : Boolean</text>
+    <text class="field" x="18" y="194">failedLoginAttempts : Int</text>
+    <text class="field" x="18" y="218">lockoutUntil : DateTime?</text>
+    <text class="field" x="18" y="242">authTokenVersion : Int</text>
+    <text class="field" x="18" y="266">verificationToken : String?</text>
+    <text class="field" x="18" y="290">passwordResetToken : String?</text>
+    <text class="field" x="18" y="314">createdAt / updatedAt : DateTime</text>
+  </g>
+
+  <g transform="translate(560 70)">
+    <rect class="entity" width="340" height="210" />
+    <rect class="header" width="340" height="46" />
+    <text class="title" x="18" y="29">JobSeekerProfile</text>
+    <text class="field" x="18" y="74">PK id : String (uuid)</text>
+    <text class="field" x="18" y="98">FK userId : String (unique)</text>
+    <text class="field" x="18" y="122">displayName : String</text>
+    <text class="field" x="18" y="146">location : String</text>
+    <text class="field" x="18" y="170">preferredJobCategories : String?</text>
+    <text class="field" x="18" y="194">createdAt / updatedAt : DateTime</text>
+  </g>
+
+  <g transform="translate(560 350)">
+    <rect class="entity" width="340" height="235" />
+    <rect class="header" width="340" height="46" />
+    <text class="title" x="18" y="29">EmployerProfile</text>
+    <text class="field" x="18" y="74">PK id : String (uuid)</text>
+    <text class="field" x="18" y="98">FK userId : String (unique)</text>
+    <text class="field" x="18" y="122">companyName : String</text>
+    <text class="field" x="18" y="146">description : String?</text>
+    <text class="field" x="18" y="170">website : String?</text>
+    <text class="field" x="18" y="194">industry : String</text>
+    <text class="field" x="18" y="218">companySize : String?</text>
+    <text class="field" x="18" y="242">createdAt / updatedAt : DateTime</text>
+  </g>
+
+  <g transform="translate(70 440)">
+    <rect class="entity" width="350" height="235" />
+    <rect class="header" width="350" height="46" />
+    <text class="title" x="18" y="29">Cv</text>
+    <text class="field" x="18" y="74">PK id : String (uuid)</text>
+    <text class="field" x="18" y="98">FK userId : String (unique)</text>
+    <text class="field" x="18" y="122">fileName : String</text>
+    <text class="field" x="18" y="146">fileUrl : String</text>
+    <text class="field" x="18" y="170">mimeType : String</text>
+    <text class="field" x="18" y="194">fileSize : Int</text>
+    <text class="field" x="18" y="218">visibility : CVVisibility</text>
+    <text class="field" x="18" y="242">createdAt / updatedAt : DateTime</text>
+  </g>
+
+  <g transform="translate(1060 220)">
+    <rect class="entity" width="250" height="140" />
+    <rect class="header" width="250" height="46" />
+    <text class="title" x="18" y="29">Tag</text>
+    <text class="field" x="18" y="74">PK id : String (uuid)</text>
+    <text class="field" x="18" y="98">name : String (unique)</text>
+  </g>
+
+  <g transform="translate(1020 480)">
+    <rect class="entity" width="330" height="170" />
+    <rect class="header" width="330" height="46" />
+    <text class="title" x="18" y="29">CVTag</text>
+    <text class="field" x="18" y="74">PK/FK cvId : String</text>
+    <text class="field" x="18" y="98">PK/FK tagId : String</text>
+    <text class="field" x="18" y="122">Composite PK (cvId, tagId)</text>
+  </g>
+
+  <g transform="translate(1060 730)">
+    <rect class="note" width="300" height="130" />
+    <text class="note-text" x="18" y="34">Enums</text>
+    <text class="enum" x="18" y="60">UserRole = JOB_SEEKER, EMPLOYER, ADMIN</text>
+    <text class="enum" x="18" y="86">CVVisibility = PRIVATE, PUBLIC,</text>
+    <text class="enum" x="18" y="108">COMPANY_ONLY</text>
+  </g>
+
+  <path class="line" d="M420 175 H560" />
+  <text class="label" x="462" y="163">1 to 0..1</text>
+  <path class="line" d="M420 230 H470 V420 H420" />
+  <text class="label" x="448" y="327">1 to 0..1</text>
+  <path class="line" d="M420 520 H470 V420 H560" />
+  <text class="label" x="448" y="468">1 to 0..1</text>
+
+  <path class="line" d="M420 557 H1020" />
+  <text class="label" x="705" y="545">1 to many through join table</text>
+
+  <path class="line" d="M1185 360 V480" />
+  <text class="label" x="1200" y="432">1 to many</text>
+
+  <path class="crow" d="M560 167 l-12 -8 m12 8 l-12 8" />
+  <path class="crow" d="M420 167 l12 -8 m-12 8 l12 8" />
+
+  <path class="crow" d="M560 510 l-12 -8 m12 8 l-12 8" />
+  <path class="crow" d="M1020 510 l12 -8 m-12 8 l12 8" />
+
+  <path class="crow" d="M1185 480 l-8 -12 m8 12 l8 -12" />
+  <path class="crow" d="M1185 360 l-8 12 m8 -12 l8 12" />
+</svg>
