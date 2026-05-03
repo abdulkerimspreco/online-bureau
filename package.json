@@ -1,0 +1,14 @@
+{
+  "name": "online-bureau",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "dependencies": {
+    "turbo": "^2.9.5",
+    "typescript": "^6.0.2"
+  }
+}
