@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { JobSeekersModule } from './job-seekers/job-seekers.module';
+import { EmployersModule } from './employers/employers.module';
 import { CvModule } from './cv/cv.module';
 import { TagsModule } from './tags/tags.module';
 
@@ -21,6 +22,7 @@ import { TagsModule } from './tags/tags.module';
     UsersModule,
     PrismaModule,
     JobSeekersModule,
+    EmployersModule,
     CvModule,
     TagsModule,
   ],
