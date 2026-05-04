@@ -243,4 +243,60 @@ export class EmployersService {
             perPage: EmployersService.SEARCH_PAGE_SIZE,
         };
     }
+
+    async getCandidateProfile(user: AuthUser, candidateId: string) {
+        if (!user.isVerified) {
+            throw new ForbiddenException(
+                'Please verify your email before viewing candidate profiles.',
+            );
+        }
+
+        const cv = await this.prisma.cv.findFirst({
+            where: {
+                userId: candidateId,
+                visibility: {
+                    in: [CVVisibility.PUBLIC, CVVisibility.COMPANY_ONLY],
+                },
+                user: {
+                    role: UserRole.JOB_SEEKER,
+                    jobSeekerProfile: {
+                        isNot: null,
+                    },
+                },
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        jobSeekerProfile: true,
+                    },
+                },
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
+            },
+        });
+
+        if (!cv || !cv.user.jobSeekerProfile) {
+            throw new NotFoundException('Candidate profile not found');
+        }
+
+        return {
+            cvId: cv.id,
+            candidateId: cv.user.id,
+            displayName: cv.user.jobSeekerProfile.displayName ?? 'Anonymous candidate',
+            location: cv.user.jobSeekerProfile.location ?? '',
+            preferredJobCategories:
+                cv.user.jobSeekerProfile.preferredJobCategories ?? null,
+            visibility: cv.visibility,
+            createdAt: cv.createdAt,
+            updatedAt: cv.updatedAt,
+            tags: cv.tags.map((entry) => ({
+                id: entry.tag.id,
+                name: entry.tag.name,
+            })),
+        };
+    }
 }

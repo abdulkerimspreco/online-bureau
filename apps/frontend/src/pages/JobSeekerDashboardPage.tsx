@@ -1,10 +1,30 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Section from '../components/ui/Section';
 import { useAuth } from '../context/auth/AuthContext';
+import { getPendingContactRequests } from '../api/contact-requests/contact-requests.api';
+import type { PendingContactRequest } from '../api/contact-requests/contact-requests.types';
 
 export default function JobSeekerDashboardPage() {
   const { user } = useAuth();
+  const [pendingRequests, setPendingRequests] = useState<PendingContactRequest[]>([]);
+  const [requestsError, setRequestsError] = useState('');
+
+  useEffect(() => {
+    async function loadPendingRequests() {
+      try {
+        const requests = await getPendingContactRequests();
+        setPendingRequests(requests);
+      } catch (err: any) {
+        setRequestsError(
+          err?.response?.data?.message || 'Failed to load contact requests',
+        );
+      }
+    }
+
+    loadPendingRequests();
+  }, []);
 
   return (
     <DashboardLayout
@@ -12,6 +32,48 @@ export default function JobSeekerDashboardPage() {
       subtitle="Your candidate workspace for managing profile visibility, CV uploads, and discoverability."
     >
       <div className="space-y-6">
+        <Section
+          title="Pending contact requests"
+          description="Employers who want to reach you will appear here first."
+        >
+          {requestsError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {requestsError}
+            </div>
+          ) : pendingRequests.length > 0 ? (
+            <div className="space-y-3">
+              {pendingRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-950">
+                        {request.companyName}
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {new Date(request.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                      Pending
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {request.message || 'No intro message was included.'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+              No contact requests yet.
+            </div>
+          )}
+        </Section>
+
         <Section
           title="Account summary"
           description="Basic information about your current session."
@@ -74,7 +136,7 @@ export default function JobSeekerDashboardPage() {
           description="These features are planned for the next backend/frontend iteration."
         >
           <div className="grid gap-4 md:grid-cols-3">
-            <InfoBlock title="Contact requests" text="Employers will request access to your contact details." />
+            <InfoBlock title="Request actions" text="Accept or decline employer contact requests in the next release." />
             <InfoBlock title="Notifications" text="Track CV updates, profile changes, and employer activity." />
             <InfoBlock title="AI review" text="Optional CV review and improvement suggestions." />
           </div>

@@ -17,6 +17,7 @@ import VerifyEmailSentPage from './pages/VerifyEmailSentPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmployerSearchPage from './pages/EmployerSearchPage';
+import EmployerCandidateProfilePage from './pages/EmployerCandidateProfilePage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -71,6 +72,10 @@ export default function App() {
         <Route path="/employer/dashboard" element={<EmployerDashboardPage />} />
         <Route path="/employer/profile" element={<EmployerProfilePage />} />
         <Route path="/employer/search" element={<EmployerSearchPage />} />
+        <Route
+          path="/employer/candidates/:candidateId"
+          element={<EmployerCandidateProfilePage />}
+        />
       </Route>
     </Routes>
   );
