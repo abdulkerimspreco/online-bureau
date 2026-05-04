@@ -10,6 +10,16 @@ export interface EmployerSearchTag {
   name: string;
 }
 
+export interface EmployerCandidateContactRequest {
+  id: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  message: string | null;
+  createdAt: string;
+  updatedAt: string;
+  canRequestAgainAt: string | null;
+  contactEmail: string | null;
+}
+
 export interface EmployerSearchResultItem {
   cvId: string;
   candidateId: string;
@@ -20,6 +30,7 @@ export interface EmployerSearchResultItem {
   createdAt: string;
   updatedAt: string;
   tags: EmployerSearchTag[];
+  contactRequest: EmployerCandidateContactRequest | null;
 }
 
 export interface EmployerSearchResponse {

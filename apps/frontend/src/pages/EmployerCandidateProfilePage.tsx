@@ -63,10 +63,26 @@ export default function EmployerCandidateProfilePage() {
     setIsSubmitting(true);
 
     try {
-      await createContactRequest({
+      const response = await createContactRequest({
         candidateId: candidate.candidateId,
         message: message.trim() || undefined,
       });
+      setCandidate((current) =>
+        current
+          ? {
+              ...current,
+              contactRequest: {
+                id: response.id,
+                status: response.status,
+                message: response.message,
+                createdAt: response.createdAt,
+                updatedAt: response.createdAt,
+                canRequestAgainAt: null,
+                contactEmail: null,
+              },
+            }
+          : current,
+      );
       setSuccess('Contact request sent successfully.');
       setMessage('');
     } catch (err: any) {
@@ -82,6 +98,23 @@ export default function EmployerCandidateProfilePage() {
     () => parsePreferredCategories(candidate?.preferredJobCategories ?? null),
     [candidate],
   );
+
+  const currentRequest = candidate?.contactRequest ?? null;
+  const canRetryDeclinedRequest =
+    currentRequest?.status === 'DECLINED' &&
+    (!currentRequest.canRequestAgainAt ||
+      new Date(currentRequest.canRequestAgainAt) <= new Date());
+  const canSendRequest =
+    !currentRequest ||
+    (currentRequest.status === 'DECLINED' && canRetryDeclinedRequest);
+  const requestStatusLabel =
+    currentRequest?.status === 'ACCEPTED'
+      ? 'Accepted'
+      : currentRequest?.status === 'DECLINED'
+        ? 'Declined'
+        : currentRequest?.status === 'PENDING'
+          ? 'Pending'
+          : null;
 
   return (
     <DashboardLayout
@@ -186,28 +219,74 @@ export default function EmployerCandidateProfilePage() {
                 hidden until they accept.
               </p>
 
-              <form onSubmit={handleRequestContact} className="mt-6 space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">
-                    Intro message (optional)
-                  </span>
-                  <textarea
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                    maxLength={500}
-                    rows={6}
-                    placeholder="Share a short introduction about the role or why you would like to connect."
-                    className="w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200"
-                  />
-                  <div className="mt-2 text-right text-xs text-slate-500">
-                    {message.length}/500
+              {currentRequest ? (
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Current status
+                    </p>
+                    {requestStatusLabel ? (
+                      <span className="inline-flex w-fit rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                        {requestStatusLabel}
+                      </span>
+                    ) : null}
                   </div>
-                </label>
 
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Sending request...' : 'Request contact'}
-                </Button>
-              </form>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {currentRequest.status === 'ACCEPTED'
+                      ? 'This candidate accepted your contact request.'
+                      : currentRequest.status === 'PENDING'
+                        ? 'Your contact request is waiting for a response.'
+                        : currentRequest.canRequestAgainAt &&
+                            new Date(currentRequest.canRequestAgainAt) > new Date()
+                          ? `This candidate declined your last request. You can try again after ${formatDate(
+                              currentRequest.canRequestAgainAt,
+                            )}.`
+                          : 'This candidate declined your last request. You can send a new request if you still want to connect.'}
+                  </p>
+
+                  {currentRequest.message ? (
+                    <p className="mt-3 text-sm text-slate-500">
+                      Last message: {currentRequest.message}
+                    </p>
+                  ) : null}
+
+                  {currentRequest.contactEmail ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      Contact email unlocked: {currentRequest.contactEmail}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {canSendRequest ? (
+                <form onSubmit={handleRequestContact} className="mt-6 space-y-4">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">
+                      Intro message (optional)
+                    </span>
+                    <textarea
+                      value={message}
+                      onChange={(event) => setMessage(event.target.value)}
+                      maxLength={500}
+                      rows={6}
+                      placeholder="Share a short introduction about the role or why you would like to connect."
+                      className="w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200"
+                    />
+                    <div className="mt-2 text-right text-xs text-slate-500">
+                      {message.length}/500
+                    </div>
+                  </label>
+
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting
+                      ? 'Sending request...'
+                      : currentRequest?.status === 'DECLINED'
+                        ? 'Send new request'
+                        : 'Request contact'}
+                  </Button>
+                </form>
+              ) : null}
             </Card>
           </div>
         ) : null}

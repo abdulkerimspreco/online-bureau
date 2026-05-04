@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import Button from '../components/ui/Button';
 import Section from '../components/ui/Section';
 import { useAuth } from '../context/auth/AuthContext';
-import { getPendingContactRequests } from '../api/contact-requests/contact-requests.api';
+import {
+  getPendingContactRequests,
+  respondToContactRequest,
+} from '../api/contact-requests/contact-requests.api';
 import type { PendingContactRequest } from '../api/contact-requests/contact-requests.types';
 
 export default function JobSeekerDashboardPage() {
   const { user } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<PendingContactRequest[]>([]);
   const [requestsError, setRequestsError] = useState('');
+  const [requestActionMessage, setRequestActionMessage] = useState('');
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadPendingRequests() {
@@ -26,6 +32,33 @@ export default function JobSeekerDashboardPage() {
     loadPendingRequests();
   }, []);
 
+  async function handleRequestDecision(
+    requestId: string,
+    action: 'ACCEPT' | 'DECLINE',
+  ) {
+    setRequestsError('');
+    setRequestActionMessage('');
+    setActiveRequestId(requestId);
+
+    try {
+      const response = await respondToContactRequest(requestId, { action });
+      setPendingRequests((current) =>
+        current.filter((request) => request.id !== requestId),
+      );
+      setRequestActionMessage(
+        action === 'ACCEPT'
+          ? `Accepted ${response.employer.companyName}. Their team can now contact you at ${response.candidate.email}.`
+          : `Declined ${response.employer.companyName}. They can send another request after the cooldown period.`,
+      );
+    } catch (err: any) {
+      setRequestsError(
+        err?.response?.data?.message || 'Failed to update contact request',
+      );
+    } finally {
+      setActiveRequestId(null);
+    }
+  }
+
   return (
     <DashboardLayout
       title="Overview"
@@ -36,6 +69,12 @@ export default function JobSeekerDashboardPage() {
           title="Pending contact requests"
           description="Employers who want to reach you will appear here first."
         >
+          {requestActionMessage ? (
+            <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {requestActionMessage}
+            </div>
+          ) : null}
+
           {requestsError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {requestsError}
@@ -64,6 +103,30 @@ export default function JobSeekerDashboardPage() {
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {request.message || 'No intro message was included.'}
                   </p>
+
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Button
+                      type="button"
+                      fullWidth={false}
+                      className="min-w-[152px] px-4 py-2"
+                      disabled={activeRequestId === request.id}
+                      onClick={() => handleRequestDecision(request.id, 'ACCEPT')}
+                    >
+                      {activeRequestId === request.id
+                        ? 'Updating...'
+                        : 'Accept request'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      fullWidth={false}
+                      className="min-w-[120px] px-4 py-2"
+                      disabled={activeRequestId === request.id}
+                      onClick={() => handleRequestDecision(request.id, 'DECLINE')}
+                    >
+                      Decline
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -136,7 +199,7 @@ export default function JobSeekerDashboardPage() {
           description="These features are planned for the next backend/frontend iteration."
         >
           <div className="grid gap-4 md:grid-cols-3">
-            <InfoBlock title="Request actions" text="Accept or decline employer contact requests in the next release." />
+            <InfoBlock title="Request actions" text="Track your accepted and declined employer decisions in the next release." />
             <InfoBlock title="Notifications" text="Track CV updates, profile changes, and employer activity." />
             <InfoBlock title="AI review" text="Optional CV review and improvement suggestions." />
           </div>

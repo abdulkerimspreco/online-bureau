@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { ContactRequestStatus, CVVisibility, UserRole } from '@prisma/client';
 import { CreateContactRequestDto } from './dto/create-contact-request.dto';
+import {
+  ContactRequestDecision,
+  RespondContactRequestDto,
+} from './dto/respond-contact-request.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface AuthUser {
@@ -17,6 +21,8 @@ interface AuthUser {
 
 @Injectable()
 export class ContactRequestsService {
+  private static readonly DECLINE_COOLDOWN_DAYS = 30;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async createForEmployer(user: AuthUser, dto: CreateContactRequestDto) {
@@ -60,18 +66,40 @@ export class ContactRequestsService {
       );
     }
 
-    const existingPendingRequest = await this.prisma.contactRequest.findFirst({
+    const latestExistingRequest = await this.prisma.contactRequest.findFirst({
       where: {
         employerId: user.id,
         candidateId: dto.candidateId,
-        status: ContactRequestStatus.PENDING,
+      },
+      orderBy: {
+        updatedAt: 'desc',
       },
     });
 
-    if (existingPendingRequest) {
+    if (latestExistingRequest?.status === ContactRequestStatus.PENDING) {
       throw new BadRequestException(
         'A pending contact request already exists for this candidate.',
       );
+    }
+
+    if (latestExistingRequest?.status === ContactRequestStatus.ACCEPTED) {
+      throw new BadRequestException(
+        'This candidate has already accepted your contact request.',
+      );
+    }
+
+    if (latestExistingRequest?.status === ContactRequestStatus.DECLINED) {
+      const canRequestAgainAt = new Date(latestExistingRequest.updatedAt);
+      canRequestAgainAt.setDate(
+        canRequestAgainAt.getDate() +
+          ContactRequestsService.DECLINE_COOLDOWN_DAYS,
+      );
+
+      if (canRequestAgainAt > new Date()) {
+        throw new BadRequestException(
+          `This candidate declined your previous contact request. You can try again after ${canRequestAgainAt.toLocaleDateString()}.`,
+        );
+      }
     }
 
     const message = dto.message?.trim() || null;
@@ -141,5 +169,95 @@ export class ContactRequestsService {
       createdAt: request.createdAt,
       status: request.status,
     }));
+  }
+
+  async respondToCandidateRequest(
+    candidateId: string,
+    requestId: string,
+    dto: RespondContactRequestDto,
+  ) {
+    const request = await this.prisma.contactRequest.findFirst({
+      where: {
+        id: requestId,
+        candidateId,
+      },
+      include: {
+        employer: {
+          include: {
+            employerProfile: true,
+          },
+        },
+        candidate: {
+          include: {
+            jobSeekerProfile: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Contact request not found.');
+    }
+
+    if (request.status !== ContactRequestStatus.PENDING) {
+      throw new BadRequestException(
+        'This contact request has already been processed.',
+      );
+    }
+
+    const status =
+      dto.action === ContactRequestDecision.ACCEPT
+        ? ContactRequestStatus.ACCEPTED
+        : ContactRequestStatus.DECLINED;
+
+    const updatedRequest = await this.prisma.contactRequest.update({
+      where: {
+        id: requestId,
+      },
+      data: {
+        status,
+      },
+      include: {
+        employer: {
+          include: {
+            employerProfile: true,
+          },
+        },
+        candidate: {
+          select: {
+            id: true,
+            email: true,
+            jobSeekerProfile: true,
+          },
+        },
+      },
+    });
+
+    const candidateName =
+      updatedRequest.candidate.jobSeekerProfile?.displayName ?? 'candidate';
+    const employerName =
+      updatedRequest.employer.employerProfile?.companyName ?? 'Employer';
+
+    console.log(
+      `Contact request ${status.toLowerCase()} email preview for ${updatedRequest.employer.email}: ${candidateName} has ${status === ContactRequestStatus.ACCEPTED ? 'accepted' : 'declined'} your contact request from ${employerName}.`,
+    );
+
+    return {
+      id: updatedRequest.id,
+      status: updatedRequest.status,
+      candidate: {
+        id: updatedRequest.candidate.id,
+        displayName: candidateName,
+        email:
+          updatedRequest.status === ContactRequestStatus.ACCEPTED
+            ? updatedRequest.candidate.email
+            : null,
+      },
+      employer: {
+        id: updatedRequest.employerId,
+        companyName: employerName,
+      },
+      updatedAt: updatedRequest.updatedAt,
+    };
   }
 }
