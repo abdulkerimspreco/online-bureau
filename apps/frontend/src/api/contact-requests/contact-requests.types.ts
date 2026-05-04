@@ -41,3 +41,27 @@ export interface ContactRequestDecisionResponse {
     companyName: string;
   };
 }
+
+export interface JobSeekerContactRequestHistoryItem {
+  id: string;
+  employerId: string;
+  companyName: string;
+  employerEmail: string;
+  message: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployerContactRequestHistoryItem {
+  id: string;
+  candidateId: string;
+  candidateDisplayName: string;
+  candidateLocation: string;
+  candidateEmail: string | null;
+  message: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  createdAt: string;
+  updatedAt: string;
+  canRequestAgainAt: string | null;
+}

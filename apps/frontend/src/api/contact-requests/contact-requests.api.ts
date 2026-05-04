@@ -3,6 +3,8 @@ import type {
   ContactRequestDecisionResponse,
   ContactRequestResponse,
   CreateContactRequestPayload,
+  EmployerContactRequestHistoryItem,
+  JobSeekerContactRequestHistoryItem,
   PendingContactRequest,
   RespondToContactRequestPayload,
 } from './contact-requests.types';
@@ -31,6 +33,20 @@ export async function respondToContactRequest(
   const response = await API.patch<ContactRequestDecisionResponse>(
     `/contact-requests/job-seeker/${requestId}/respond`,
     payload,
+  );
+  return response.data;
+}
+
+export async function getJobSeekerContactRequestHistory() {
+  const response = await API.get<JobSeekerContactRequestHistoryItem[]>(
+    '/contact-requests/job-seeker/history',
+  );
+  return response.data;
+}
+
+export async function getEmployerContactRequestHistory() {
+  const response = await API.get<EmployerContactRequestHistoryItem[]>(
+    '/contact-requests/employer/history',
   );
   return response.data;
 }

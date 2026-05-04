@@ -199,6 +199,41 @@ describe('ContactRequestsService', () => {
     ]);
   });
 
+  it('returns candidate contact request history with employer details', async () => {
+    prisma.contactRequest.findMany.mockResolvedValue([
+      {
+        id: 'req-1',
+        employerId: 'emp-1',
+        message: 'Hello there',
+        createdAt: new Date('2026-05-03T18:00:00.000Z'),
+        updatedAt: new Date('2026-05-04T08:00:00.000Z'),
+        status: ContactRequestStatus.ACCEPTED,
+        employer: {
+          id: 'emp-1',
+          email: 'employer@example.com',
+          employerProfile: {
+            companyName: 'Online Bureau',
+          },
+        },
+      },
+    ]);
+
+    const result = await service.getHistoryForCandidate('cand-1');
+
+    expect(result).toEqual([
+      {
+        id: 'req-1',
+        employerId: 'emp-1',
+        companyName: 'Online Bureau',
+        employerEmail: 'employer@example.com',
+        message: 'Hello there',
+        createdAt: new Date('2026-05-03T18:00:00.000Z'),
+        updatedAt: new Date('2026-05-04T08:00:00.000Z'),
+        status: ContactRequestStatus.ACCEPTED,
+      },
+    ]);
+  });
+
   it('accepts a pending contact request and reveals the candidate email', async () => {
     prisma.contactRequest.findFirst.mockResolvedValue({
       id: 'req-1',
@@ -258,5 +293,50 @@ describe('ContactRequestsService', () => {
         action: ContactRequestDecision.DECLINE,
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('returns employer contact request history with unlocked email only for accepted requests', async () => {
+    prisma.contactRequest.findMany.mockResolvedValue([
+      {
+        id: 'req-1',
+        employerId: 'emp-1',
+        candidateId: 'cand-1',
+        message: 'Hello there',
+        createdAt: new Date('2026-05-03T18:00:00.000Z'),
+        updatedAt: new Date('2026-05-04T08:00:00.000Z'),
+        status: ContactRequestStatus.ACCEPTED,
+        candidate: {
+          id: 'cand-1',
+          email: 'candidate@example.com',
+          jobSeekerProfile: {
+            displayName: 'Abdul',
+            location: 'Sarajevo',
+          },
+        },
+      },
+      {
+        id: 'req-2',
+        employerId: 'emp-1',
+        candidateId: 'cand-2',
+        message: null,
+        createdAt: new Date('2026-05-02T18:00:00.000Z'),
+        updatedAt: new Date('2026-05-03T08:00:00.000Z'),
+        status: ContactRequestStatus.DECLINED,
+        candidate: {
+          id: 'cand-2',
+          email: 'hidden@example.com',
+          jobSeekerProfile: {
+            displayName: 'Lejla',
+            location: 'Mostar',
+          },
+        },
+      },
+    ]);
+
+    const result = await service.getHistoryForEmployer('emp-1');
+
+    expect(result[0].candidateEmail).toBe('candidate@example.com');
+    expect(result[1].candidateEmail).toBeNull();
+    expect(result[1].canRequestAgainAt).toBeInstanceOf(Date);
   });
 });

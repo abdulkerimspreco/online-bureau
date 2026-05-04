@@ -191,6 +191,11 @@ export default function JobSeekerDashboardPage() {
               description="Add skills and role tags to improve employer search results."
               to="/job-seeker/tags"
             />
+            <DashboardAction
+              title="Review request history"
+              description="See every employer decision and keep accepted contact details in one place."
+              to="/job-seeker/requests"
+            />
           </div>
         </Section>
 
@@ -199,9 +204,9 @@ export default function JobSeekerDashboardPage() {
           description="These features are planned for the next backend/frontend iteration."
         >
           <div className="grid gap-4 md:grid-cols-3">
-            <InfoBlock title="Request actions" text="Track your accepted and declined employer decisions in the next release." />
             <InfoBlock title="Notifications" text="Track CV updates, profile changes, and employer activity." />
             <InfoBlock title="AI review" text="Optional CV review and improvement suggestions." />
+            <InfoBlock title="Privacy controls" text="Refine what employers can access as the platform grows." />
           </div>
         </Section>
       </div>

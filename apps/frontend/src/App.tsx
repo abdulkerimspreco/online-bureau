@@ -18,6 +18,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmployerSearchPage from './pages/EmployerSearchPage';
 import EmployerCandidateProfilePage from './pages/EmployerCandidateProfilePage';
+import JobSeekerContactHistoryPage from './pages/JobSeekerContactHistoryPage';
+import EmployerContactHistoryPage from './pages/EmployerContactHistoryPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -64,6 +66,10 @@ export default function App() {
           path="/job-seeker/profile"
           element={<JobSeekerProfilePage />}
         />
+        <Route
+          path="/job-seeker/requests"
+          element={<JobSeekerContactHistoryPage />}
+        />
         <Route path="/job-seeker/cv" element={<CvPage />} />
         <Route path="/job-seeker/tags" element={<TagsPage />} />
       </Route>
@@ -72,6 +78,10 @@ export default function App() {
         <Route path="/employer/dashboard" element={<EmployerDashboardPage />} />
         <Route path="/employer/profile" element={<EmployerProfilePage />} />
         <Route path="/employer/search" element={<EmployerSearchPage />} />
+        <Route
+          path="/employer/requests"
+          element={<EmployerContactHistoryPage />}
+        />
         <Route
           path="/employer/candidates/:candidateId"
           element={<EmployerCandidateProfilePage />}

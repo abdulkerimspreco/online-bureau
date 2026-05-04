@@ -39,6 +39,12 @@ export class ContactRequestsController {
     return this.contactRequestsService.getPendingForCandidate(user.id);
   }
 
+  @Get('job-seeker/history')
+  @Roles(UserRole.JOB_SEEKER)
+  getHistoryForJobSeeker(@CurrentUser() user: AuthUser) {
+    return this.contactRequestsService.getHistoryForCandidate(user.id);
+  }
+
   @Patch('job-seeker/:requestId/respond')
   @Roles(UserRole.JOB_SEEKER)
   respondToRequest(
@@ -51,5 +57,11 @@ export class ContactRequestsController {
       requestId,
       dto,
     );
+  }
+
+  @Get('employer/history')
+  @Roles(UserRole.EMPLOYER)
+  getHistoryForEmployer(@CurrentUser() user: AuthUser) {
+    return this.contactRequestsService.getHistoryForEmployer(user.id);
   }
 }

@@ -171,6 +171,38 @@ export class ContactRequestsService {
     }));
   }
 
+  async getHistoryForCandidate(candidateId: string) {
+    const requests = await this.prisma.contactRequest.findMany({
+      where: {
+        candidateId,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      include: {
+        employer: {
+          select: {
+            id: true,
+            email: true,
+            employerProfile: true,
+          },
+        },
+      },
+    });
+
+    return requests.map((request) => ({
+      id: request.id,
+      employerId: request.employerId,
+      companyName:
+        request.employer.employerProfile?.companyName ?? 'Unknown employer',
+      employerEmail: request.employer.email,
+      message: request.message,
+      status: request.status,
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+    }));
+  }
+
   async respondToCandidateRequest(
     candidateId: string,
     requestId: string,
@@ -259,5 +291,55 @@ export class ContactRequestsService {
       },
       updatedAt: updatedRequest.updatedAt,
     };
+  }
+
+  async getHistoryForEmployer(employerId: string) {
+    const requests = await this.prisma.contactRequest.findMany({
+      where: {
+        employerId,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      include: {
+        candidate: {
+          select: {
+            id: true,
+            email: true,
+            jobSeekerProfile: true,
+          },
+        },
+      },
+    });
+
+    return requests.map((request) => {
+      let canRequestAgainAt: Date | null = null;
+
+      if (request.status === ContactRequestStatus.DECLINED) {
+        canRequestAgainAt = new Date(request.updatedAt);
+        canRequestAgainAt.setDate(
+          canRequestAgainAt.getDate() +
+            ContactRequestsService.DECLINE_COOLDOWN_DAYS,
+        );
+      }
+
+      return {
+        id: request.id,
+        candidateId: request.candidateId,
+        candidateDisplayName:
+          request.candidate.jobSeekerProfile?.displayName ??
+          'Anonymous candidate',
+        candidateLocation: request.candidate.jobSeekerProfile?.location ?? '',
+        candidateEmail:
+          request.status === ContactRequestStatus.ACCEPTED
+            ? request.candidate.email
+            : null,
+        message: request.message,
+        status: request.status,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt,
+        canRequestAgainAt,
+      };
+    });
   }
 }
