@@ -22,3 +22,22 @@ export interface PendingContactRequest {
   createdAt: string;
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
 }
+
+export interface RespondToContactRequestPayload {
+  action: 'ACCEPT' | 'DECLINE';
+}
+
+export interface ContactRequestDecisionResponse {
+  id: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  updatedAt: string;
+  candidate: {
+    id: string;
+    displayName: string;
+    email: string | null;
+  };
+  employer: {
+    id: string;
+    companyName: string;
+  };
+}

@@ -13,6 +13,9 @@ type MockedPrisma = {
     count: jest.Mock;
     findMany: jest.Mock;
   };
+  contactRequest: {
+    findFirst: jest.Mock;
+  };
 };
 
 describe('EmployersService', () => {
@@ -29,6 +32,9 @@ describe('EmployersService', () => {
         findFirst: jest.fn(),
         count: jest.fn(),
         findMany: jest.fn(),
+      },
+      contactRequest: {
+        findFirst: jest.fn(),
       },
     };
 
@@ -137,11 +143,12 @@ describe('EmployersService', () => {
       visibility: CVVisibility.PUBLIC,
       createdAt: new Date('2026-05-03T09:00:00.000Z'),
       updatedAt: new Date('2026-05-03T10:00:00.000Z'),
-      user: {
-        id: 'job-seeker-1',
-        jobSeekerProfile: {
-          displayName: 'Abdul',
-          location: 'Sarajevo',
+        user: {
+          id: 'job-seeker-1',
+          email: 'candidate@example.com',
+          jobSeekerProfile: {
+            displayName: 'Abdul',
+            location: 'Sarajevo',
           preferredJobCategories: 'Backend, Fullstack',
         },
       },
@@ -153,6 +160,13 @@ describe('EmployersService', () => {
           },
         },
       ],
+    });
+    prisma.contactRequest.findFirst.mockResolvedValue({
+      id: 'req-1',
+      status: 'ACCEPTED',
+      message: 'Hello there',
+      createdAt: new Date('2026-05-03T11:00:00.000Z'),
+      updatedAt: new Date('2026-05-03T12:00:00.000Z'),
     });
 
     const result = await service.getCandidateProfile(
@@ -167,5 +181,6 @@ describe('EmployersService', () => {
 
     expect(result.candidateId).toBe('job-seeker-1');
     expect(result.tags).toEqual([{ id: 'tag-1', name: 'NestJS' }]);
+    expect(result.contactRequest?.contactEmail).toBe('candidate@example.com');
   });
 });

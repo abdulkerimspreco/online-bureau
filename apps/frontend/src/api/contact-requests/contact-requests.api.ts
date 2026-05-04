@@ -1,8 +1,10 @@
 import { API } from '../auth/axios';
 import type {
+  ContactRequestDecisionResponse,
   ContactRequestResponse,
   CreateContactRequestPayload,
   PendingContactRequest,
+  RespondToContactRequestPayload,
 } from './contact-requests.types';
 
 export async function createContactRequest(
@@ -18,6 +20,17 @@ export async function createContactRequest(
 export async function getPendingContactRequests() {
   const response = await API.get<PendingContactRequest[]>(
     '/contact-requests/job-seeker/pending',
+  );
+  return response.data;
+}
+
+export async function respondToContactRequest(
+  requestId: string,
+  payload: RespondToContactRequestPayload,
+) {
+  const response = await API.patch<ContactRequestDecisionResponse>(
+    `/contact-requests/job-seeker/${requestId}/respond`,
+    payload,
   );
   return response.data;
 }

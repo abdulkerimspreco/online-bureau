@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactRequestsService } from './contact-requests.service';
+import { ContactRequestDecision } from './dto/respond-contact-request.dto';
 
 type MockedPrisma = {
   cv: {
@@ -19,6 +20,7 @@ type MockedPrisma = {
     findFirst: jest.Mock;
     create: jest.Mock;
     findMany: jest.Mock;
+    update: jest.Mock;
   };
 };
 
@@ -35,6 +37,7 @@ describe('ContactRequestsService', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
         findMany: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -81,6 +84,32 @@ describe('ContactRequestsService', () => {
     prisma.contactRequest.findFirst.mockResolvedValue({
       id: 'req-1',
       status: ContactRequestStatus.PENDING,
+    });
+
+    await expect(
+      service.createForEmployer(
+        {
+          id: 'emp-1',
+          email: 'employer@example.com',
+          role: UserRole.EMPLOYER,
+          isVerified: true,
+        },
+        { candidateId: 'cand-1', message: 'Hello there' },
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('blocks retries during the 30-day decline cooldown', async () => {
+    prisma.cv.findFirst.mockResolvedValue({
+      user: {
+        email: 'candidate@example.com',
+        jobSeekerProfile: { displayName: 'Abdul' },
+      },
+    });
+    prisma.contactRequest.findFirst.mockResolvedValue({
+      id: 'req-1',
+      status: ContactRequestStatus.DECLINED,
+      updatedAt: new Date('2026-05-01T18:00:00.000Z'),
     });
 
     await expect(
@@ -168,5 +197,66 @@ describe('ContactRequestsService', () => {
         status: ContactRequestStatus.PENDING,
       },
     ]);
+  });
+
+  it('accepts a pending contact request and reveals the candidate email', async () => {
+    prisma.contactRequest.findFirst.mockResolvedValue({
+      id: 'req-1',
+      status: ContactRequestStatus.PENDING,
+      employer: {
+        email: 'employer@example.com',
+        employerProfile: { companyName: 'Online Bureau' },
+      },
+      candidate: {
+        jobSeekerProfile: { displayName: 'Abdul' },
+      },
+    });
+    prisma.contactRequest.update.mockResolvedValue({
+      id: 'req-1',
+      employerId: 'emp-1',
+      status: ContactRequestStatus.ACCEPTED,
+      updatedAt: new Date('2026-05-04T10:00:00.000Z'),
+      employer: {
+        email: 'employer@example.com',
+        employerProfile: { companyName: 'Online Bureau' },
+      },
+      candidate: {
+        id: 'cand-1',
+        email: 'candidate@example.com',
+        jobSeekerProfile: { displayName: 'Abdul' },
+      },
+    });
+
+    const result = await service.respondToCandidateRequest('cand-1', 'req-1', {
+      action: ContactRequestDecision.ACCEPT,
+    });
+
+    expect(prisma.contactRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'req-1' },
+        data: { status: ContactRequestStatus.ACCEPTED },
+      }),
+    );
+    expect(result.candidate.email).toBe('candidate@example.com');
+  });
+
+  it('rejects responding to an already processed request', async () => {
+    prisma.contactRequest.findFirst.mockResolvedValue({
+      id: 'req-1',
+      status: ContactRequestStatus.DECLINED,
+      employer: {
+        email: 'employer@example.com',
+        employerProfile: { companyName: 'Online Bureau' },
+      },
+      candidate: {
+        jobSeekerProfile: { displayName: 'Abdul' },
+      },
+    });
+
+    await expect(
+      service.respondToCandidateRequest('cand-1', 'req-1', {
+        action: ContactRequestDecision.DECLINE,
+      }),
+    ).rejects.toThrow(BadRequestException);
   });
 });

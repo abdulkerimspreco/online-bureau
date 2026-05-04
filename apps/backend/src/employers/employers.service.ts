@@ -1,5 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CVVisibility, Prisma, UserRole } from '@prisma/client';
+import {
+    CVVisibility,
+    ContactRequestStatus,
+    Prisma,
+    UserRole,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SearchCandidatesDto } from './dto/search-candidates.dto';
 import { UpdateEmployerProfileDto } from './dto/update-employer-profile.dto';
@@ -268,6 +273,7 @@ export class EmployersService {
                 user: {
                     select: {
                         id: true,
+                        email: true,
                         jobSeekerProfile: true,
                     },
                 },
@@ -281,6 +287,23 @@ export class EmployersService {
 
         if (!cv || !cv.user.jobSeekerProfile) {
             throw new NotFoundException('Candidate profile not found');
+        }
+
+        const latestContactRequest = await this.prisma.contactRequest.findFirst({
+            where: {
+                employerId: user.id,
+                candidateId,
+            },
+            orderBy: {
+                updatedAt: 'desc',
+            },
+        });
+
+        let canRequestAgainAt: Date | null = null;
+
+        if (latestContactRequest?.status === ContactRequestStatus.DECLINED) {
+            canRequestAgainAt = new Date(latestContactRequest.updatedAt);
+            canRequestAgainAt.setDate(canRequestAgainAt.getDate() + 30);
         }
 
         return {
@@ -297,6 +320,20 @@ export class EmployersService {
                 id: entry.tag.id,
                 name: entry.tag.name,
             })),
+            contactRequest: latestContactRequest
+                ? {
+                    id: latestContactRequest.id,
+                    status: latestContactRequest.status,
+                    message: latestContactRequest.message,
+                    createdAt: latestContactRequest.createdAt,
+                    updatedAt: latestContactRequest.updatedAt,
+                    canRequestAgainAt,
+                    contactEmail:
+                        latestContactRequest.status === ContactRequestStatus.ACCEPTED
+                            ? cv.user.email
+                            : null,
+                }
+                : null,
         };
     }
 }
