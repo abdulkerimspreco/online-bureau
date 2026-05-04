@@ -19,6 +19,12 @@ enum CVVisibility {
   COMPANY_ONLY
 }
 
+enum ContactRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
@@ -39,6 +45,8 @@ model User {
   jobSeekerProfile JobSeekerProfile?
   employerProfile  EmployerProfile?
   cv               Cv?
+  sentContactRequests     ContactRequest[] @relation("EmployerContactRequests")
+  receivedContactRequests ContactRequest[] @relation("CandidateContactRequests")
 }
 
 model JobSeekerProfile {
@@ -100,4 +108,20 @@ model CVTag {
   tag   Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([cvId, tagId])
+}
+
+model ContactRequest {
+  id         String               @id @default(uuid())
+  employerId String
+  candidateId String
+  message    String?
+  status     ContactRequestStatus @default(PENDING)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  employer   User @relation("EmployerContactRequests", fields: [employerId], references: [id], onDelete: Cascade)
+  candidate  User @relation("CandidateContactRequests", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, status])
+  @@index([employerId, status])
 }

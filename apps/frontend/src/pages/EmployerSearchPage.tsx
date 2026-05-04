@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Section from '../components/ui/Section';
@@ -326,6 +327,15 @@ function CandidateCard({
       <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
         <span>CV updated {formatDate(candidate.updatedAt)}</span>
         <span>Contact details remain hidden</span>
+      </div>
+
+      <div className="mt-5">
+        <Link
+          to={`/employer/candidates/${candidate.candidateId}`}
+          className="inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+        >
+          View candidate profile
+        </Link>
       </div>
     </article>
   );

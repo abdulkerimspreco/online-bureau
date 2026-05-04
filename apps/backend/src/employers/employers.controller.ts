@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -32,6 +32,14 @@ export class EmployersController {
         @Query() dto: SearchCandidatesDto,
     ) {
         return this.employersService.searchCandidates(user, dto);
+    }
+
+    @Get('candidates/:candidateId')
+    getCandidateProfile(
+        @CurrentUser() user: AuthUser,
+        @Param('candidateId') candidateId: string,
+    ) {
+        return this.employersService.getCandidateProfile(user, candidateId);
     }
 
     @Patch('updateMyProfile')

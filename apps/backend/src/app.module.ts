@@ -10,6 +10,7 @@ import { JobSeekersModule } from './job-seekers/job-seekers.module';
 import { EmployersModule } from './employers/employers.module';
 import { CvModule } from './cv/cv.module';
 import { TagsModule } from './tags/tags.module';
+import { ContactRequestsModule } from './contact-requests/contact-requests.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TagsModule } from './tags/tags.module';
     EmployersModule,
     CvModule,
     TagsModule,
+    ContactRequestsModule,
   ],
 })
 export class AppModule { }

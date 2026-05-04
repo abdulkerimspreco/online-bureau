@@ -9,6 +9,7 @@ type MockedPrisma = {
     update: jest.Mock;
   };
   cv: {
+    findFirst: jest.Mock;
     count: jest.Mock;
     findMany: jest.Mock;
   };
@@ -25,6 +26,7 @@ describe('EmployersService', () => {
         update: jest.fn(),
       },
       cv: {
+        findFirst: jest.fn(),
         count: jest.fn(),
         findMany: jest.fn(),
       },
@@ -127,5 +129,43 @@ describe('EmployersService', () => {
       page: 1,
       perPage: 20,
     });
+  });
+
+  it('returns a candidate profile for verified employers', async () => {
+    prisma.cv.findFirst.mockResolvedValue({
+      id: 'cv-1',
+      visibility: CVVisibility.PUBLIC,
+      createdAt: new Date('2026-05-03T09:00:00.000Z'),
+      updatedAt: new Date('2026-05-03T10:00:00.000Z'),
+      user: {
+        id: 'job-seeker-1',
+        jobSeekerProfile: {
+          displayName: 'Abdul',
+          location: 'Sarajevo',
+          preferredJobCategories: 'Backend, Fullstack',
+        },
+      },
+      tags: [
+        {
+          tag: {
+            id: 'tag-1',
+            name: 'NestJS',
+          },
+        },
+      ],
+    });
+
+    const result = await service.getCandidateProfile(
+      {
+        id: 'user-1',
+        email: 'employer@example.com',
+        role: UserRole.EMPLOYER,
+        isVerified: true,
+      },
+      'job-seeker-1',
+    );
+
+    expect(result.candidateId).toBe('job-seeker-1');
+    expect(result.tags).toEqual([{ id: 'tag-1', name: 'NestJS' }]);
   });
 });
