@@ -19,12 +19,14 @@ const jobSeekerNav: NavItem[] = [
   { label: 'Profile', to: '/job-seeker/profile' },
   { label: 'My CV', to: '/job-seeker/cv' },
   { label: 'Tags', to: '/job-seeker/tags' },
+  { label: 'Requests', to: '/job-seeker/requests' },
 ];
 
 const employerNav: NavItem[] = [
   { label: 'Overview', to: '/employer/dashboard' },
   { label: 'Company Profile', to: '/employer/profile' },
   { label: 'Candidate Search', to: '/employer/search' },
+  { label: 'Requests', to: '/employer/requests' },
 ];
 
 export default function DashboardLayout({

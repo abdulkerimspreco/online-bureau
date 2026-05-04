@@ -65,6 +65,11 @@ export default function EmployerDashboardPage() {
               description="Find visible CVs by tags, keywords, and location."
               to="/employer/search"
             />
+            <DashboardAction
+              title="Review request history"
+              description="Track candidate decisions and revisit accepted contact details."
+              to="/employer/requests"
+            />
           </div>
         </Section>
 
@@ -73,9 +78,9 @@ export default function EmployerDashboardPage() {
           description="These features will complete the employer workflow."
         >
           <div className="grid gap-4 md:grid-cols-3">
-            <InfoBlock title="Contact requests" text="Send controlled contact requests to candidates." />
             <InfoBlock title="Saved searches" text="Save and rerun candidate search filters." />
             <InfoBlock title="Shortlist" text="Save promising candidate profiles for later." />
+            <InfoBlock title="Notifications" text="Track candidate decisions and account activity in one place." />
           </div>
         </Section>
       </div>
