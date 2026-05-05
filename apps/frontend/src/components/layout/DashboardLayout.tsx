@@ -27,6 +27,7 @@ const employerNav: NavItem[] = [
   { label: 'Company Profile', to: '/employer/profile' },
   { label: 'Candidate Search', to: '/employer/search' },
   { label: 'Requests', to: '/employer/requests' },
+  { label: 'Shortlist', to: '/employer/shortlist' },
 ];
 
 export default function DashboardLayout({

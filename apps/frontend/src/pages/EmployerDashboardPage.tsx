@@ -70,6 +70,11 @@ export default function EmployerDashboardPage() {
               description="Track candidate decisions and revisit accepted contact details."
               to="/employer/requests"
             />
+            <DashboardAction
+              title="Manage shortlist"
+              description="Keep promising candidates together and revisit them quickly."
+              to="/employer/shortlist"
+            />
           </div>
         </Section>
 
@@ -79,8 +84,8 @@ export default function EmployerDashboardPage() {
         >
           <div className="grid gap-4 md:grid-cols-3">
             <InfoBlock title="Saved searches" text="Save and rerun candidate search filters." />
-            <InfoBlock title="Shortlist" text="Save promising candidate profiles for later." />
             <InfoBlock title="Notifications" text="Track candidate decisions and account activity in one place." />
+            <InfoBlock title="Hiring pipeline" text="Group candidate outreach and follow-up into a clearer workflow." />
           </div>
         </Section>
       </div>

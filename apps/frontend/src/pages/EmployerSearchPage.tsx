@@ -8,9 +8,7 @@ import EmployerVerificationNotice from '../components/ui/EmployerVerificationNot
 import { useAuth } from '../context/auth/AuthContext';
 import { getAllTags } from '../api/tags/tags.api';
 import type { Tag } from '../api/tags/tags.types';
-import {
-  searchCandidates,
-} from '../api/employer-search/employer-search.api';
+import { searchCandidates } from '../api/employer-search/employer-search.api';
 import type {
   EmployerSearchFilters,
   EmployerSearchResponse,
@@ -22,6 +20,12 @@ import {
   getSavedSearches,
 } from '../api/saved-searches/saved-searches.api';
 import type { SavedSearch } from '../api/saved-searches/saved-searches.types';
+import {
+  addToShortlist,
+  getShortlist,
+  removeFromShortlist,
+} from '../api/shortlist/shortlist.api';
+import type { ShortlistEntry } from '../api/shortlist/shortlist.types';
 import { formatDate } from '../utils/functionUtils';
 
 type SearchForm = {
@@ -60,12 +64,20 @@ export default function EmployerSearchPage() {
   const [savedSearchName, setSavedSearchName] = useState('');
   const [tags, setTags] = useState<Tag[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [shortlistEntries, setShortlistEntries] = useState<ShortlistEntry[]>(
+    [],
+  );
   const [results, setResults] = useState<EmployerSearchResponse | null>(null);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
   const [isLoadingSavedSearches, setIsLoadingSavedSearches] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isSavingSearch, setIsSavingSearch] = useState(false);
-  const [activeSavedSearchId, setActiveSavedSearchId] = useState<string | null>(null);
+  const [activeSavedSearchId, setActiveSavedSearchId] = useState<string | null>(
+    null,
+  );
+  const [activeShortlistCandidateId, setActiveShortlistCandidateId] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState('');
   const [savedSearchMessage, setSavedSearchMessage] = useState('');
 
@@ -90,14 +102,19 @@ export default function EmployerSearchPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const [allTags, existingSavedSearches] = await Promise.all([
-          getAllTags(),
-          getSavedSearches(),
-        ]);
+        const [allTags, existingSavedSearches, existingShortlist] =
+          await Promise.all([
+            getAllTags(),
+            getSavedSearches(),
+            getShortlist(),
+          ]);
         setTags(allTags);
         setSavedSearches(existingSavedSearches);
+        setShortlistEntries(existingShortlist);
       } catch (err: any) {
-        setError(err?.response?.data?.message || 'Failed to load search filters');
+        setError(
+          err?.response?.data?.message || 'Failed to load search filters',
+        );
       } finally {
         setIsLoadingTags(false);
         setIsLoadingSavedSearches(false);
@@ -110,6 +127,7 @@ export default function EmployerSearchPage() {
       setIsLoadingTags(false);
       setIsLoadingSavedSearches(false);
       setSavedSearches([]);
+      setShortlistEntries([]);
     }
   }, [isVerifiedEmployer]);
 
@@ -187,7 +205,36 @@ export default function EmployerSearchPage() {
     }
   }
 
-  const totalPages = results ? Math.max(1, Math.ceil(results.total / results.perPage)) : 1;
+  async function handleToggleShortlist(candidateId: string) {
+    setError('');
+    setSavedSearchMessage('');
+    setActiveShortlistCandidateId(candidateId);
+
+    try {
+      const existingEntry = shortlistEntries.find(
+        (entry) => entry.candidateId === candidateId,
+      );
+
+      if (existingEntry) {
+        await removeFromShortlist(existingEntry.id);
+        setShortlistEntries((current) =>
+          current.filter((entry) => entry.id !== existingEntry.id),
+        );
+      } else {
+        await addToShortlist(candidateId);
+        const refreshedShortlist = await getShortlist();
+        setShortlistEntries(refreshedShortlist);
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to update shortlist');
+    } finally {
+      setActiveShortlistCandidateId(null);
+    }
+  }
+
+  const totalPages = results
+    ? Math.max(1, Math.ceil(results.total / results.perPage))
+    : 1;
 
   return (
     <DashboardLayout
@@ -201,7 +248,10 @@ export default function EmployerSearchPage() {
           title="Filters"
           description="Search over visible candidate CVs only. Results are limited to 20 per page."
         >
-          <form className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_auto_auto]" onSubmit={handleSubmit}>
+          <form
+            className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_auto_auto]"
+            onSubmit={handleSubmit}
+          >
             <TextInput
               label="Keyword"
               placeholder="React, backend, Sarajevo"
@@ -244,7 +294,11 @@ export default function EmployerSearchPage() {
             </label>
 
             <div className="flex items-end">
-              <Button type="submit" disabled={!isVerifiedEmployer || isSearching} fullWidth={false}>
+              <Button
+                type="submit"
+                disabled={!isVerifiedEmployer || isSearching}
+                fullWidth={false}
+              >
                 {isSearching ? 'Searching...' : 'Search'}
               </Button>
             </div>
@@ -332,7 +386,9 @@ export default function EmployerSearchPage() {
                             <SearchChip label={`Keyword: ${savedSearch.query}`} />
                           ) : null}
                           {savedSearch.location ? (
-                            <SearchChip label={`Location: ${savedSearch.location}`} />
+                            <SearchChip
+                              label={`Location: ${savedSearch.location}`}
+                            />
                           ) : null}
                           {savedSearch.tag ? (
                             <SearchChip label={`Tag: ${savedSearch.tag.name}`} />
@@ -384,14 +440,27 @@ export default function EmployerSearchPage() {
         >
           {!isVerifiedEmployer ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
-              Candidate search is unavailable until your employer email is verified.
+              Candidate search is unavailable until your employer email is
+              verified.
             </div>
           ) : isSearching && !results ? (
             <p className="text-sm text-slate-500">Loading candidates...</p>
           ) : results && results.items.length > 0 ? (
             <div className="space-y-4">
               {results.items.map((candidate) => (
-                <CandidateCard key={candidate.cvId} candidate={candidate} />
+                <CandidateCard
+                  key={candidate.cvId}
+                  candidate={candidate}
+                  shortlistEntry={shortlistEntries.find(
+                    (entry) => entry.candidateId === candidate.candidateId,
+                  )}
+                  isUpdatingShortlist={
+                    activeShortlistCandidateId === candidate.candidateId
+                  }
+                  onToggleShortlist={() =>
+                    handleToggleShortlist(candidate.candidateId)
+                  }
+                />
               ))}
 
               {totalPages > 1 ? (
@@ -442,8 +511,14 @@ function SearchChip({ label }: { label: string }) {
 
 function CandidateCard({
   candidate,
+  shortlistEntry,
+  isUpdatingShortlist,
+  onToggleShortlist,
 }: {
   candidate: EmployerSearchResultItem;
+  shortlistEntry?: ShortlistEntry;
+  isUpdatingShortlist: boolean;
+  onToggleShortlist: () => void;
 }) {
   const categories = parsePreferredCategories(candidate.preferredJobCategories);
 
@@ -458,7 +533,9 @@ function CandidateCard({
         </div>
 
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-          {candidate.visibility === 'COMPANY_ONLY' ? 'Employer visible' : 'Public'}
+          {candidate.visibility === 'COMPANY_ONLY'
+            ? 'Employer visible'
+            : 'Public'}
         </div>
       </div>
 
@@ -479,7 +556,9 @@ function CandidateCard({
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-slate-500">No preferred categories listed.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              No preferred categories listed.
+            </p>
           )}
         </div>
 
@@ -509,13 +588,27 @@ function CandidateCard({
         <span>Contact details remain hidden</span>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <Link
           to={`/employer/candidates/${candidate.candidateId}`}
           className="inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
         >
           View candidate profile
         </Link>
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth={false}
+          className="px-4 py-2"
+          disabled={isUpdatingShortlist}
+          onClick={onToggleShortlist}
+        >
+          {isUpdatingShortlist
+            ? 'Updating...'
+            : shortlistEntry
+              ? 'Remove from shortlist'
+              : 'Add to shortlist'}
+        </Button>
       </div>
     </article>
   );
