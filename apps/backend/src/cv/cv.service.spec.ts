@@ -1,11 +1,15 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CVVisibility } from '@prisma/client';
-import { unlink } from 'fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { CvService } from './cv.service';
 import { PrismaService } from '../prisma/prisma.service';
+import * as cryptoHelpers from './cv.crypto';
 
 jest.mock('fs/promises', () => ({
+  mkdir: jest.fn(),
+  readFile: jest.fn(),
   unlink: jest.fn(),
+  writeFile: jest.fn(),
 }));
 
 type MockedPrisma = {
@@ -47,58 +51,98 @@ describe('CvService', () => {
   });
 
   it('creates a cv when uploading for the first time', async () => {
+    jest.spyOn(cryptoHelpers, 'encryptCvBuffer').mockReturnValue({
+      encrypted: Buffer.from('encrypted'),
+      iv: 'iv-value',
+      authTag: 'tag-value',
+    });
+
     const file = {
       originalname: 'cv.pdf',
-      filename: 'saved.pdf',
       mimetype: 'application/pdf',
       size: 1024,
+      buffer: Buffer.from('plain'),
     } as Express.Multer.File;
-    const created = { id: 'cv-1', fileName: 'cv.pdf' };
+    const created = {
+      id: 'cv-1',
+      userId: 'user-1',
+      fileName: 'cv.pdf',
+      fileUrl: '/tmp/private-path',
+      mimeType: 'application/pdf',
+      fileSize: 1024,
+      visibility: CVVisibility.PRIVATE,
+      createdAt: new Date('2026-05-05T18:00:00.000Z'),
+      updatedAt: new Date('2026-05-05T18:00:00.000Z'),
+      encryptionIv: 'iv-value',
+      encryptionAuthTag: 'tag-value',
+    };
 
     prisma.cv.findUnique.mockResolvedValue(null);
     prisma.cv.create.mockResolvedValue(created);
 
     const result = await service.uploadCv('user-1', file);
 
+    expect(mkdir).toHaveBeenCalled();
+    expect(writeFile).toHaveBeenCalled();
     expect(prisma.cv.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         userId: 'user-1',
         fileName: 'cv.pdf',
-        fileUrl: '/uploads/cvs/saved.pdf',
         mimeType: 'application/pdf',
         fileSize: 1024,
-      },
+        encryptionIv: 'iv-value',
+        encryptionAuthTag: 'tag-value',
+      }),
     });
-    expect(result).toBe(created);
+    expect(result.fileUrl).toBe('/cv/me/file');
   });
 
   it('replaces an existing cv and tries to delete the old file', async () => {
+    jest.spyOn(cryptoHelpers, 'encryptCvBuffer').mockReturnValue({
+      encrypted: Buffer.from('encrypted'),
+      iv: 'new-iv',
+      authTag: 'new-tag',
+    });
+
     const file = {
       originalname: 'cv-new.pdf',
-      filename: 'saved-new.pdf',
       mimetype: 'application/pdf',
       size: 1024,
+      buffer: Buffer.from('plain'),
     } as Express.Multer.File;
     const existingCv = {
       id: 'cv-1',
       userId: 'user-1',
-      fileUrl: '/uploads/cvs/old.pdf',
+      fileUrl: '/uploads/cvs/old.pdf'
     };
 
     prisma.cv.findUnique.mockResolvedValue(existingCv);
-    prisma.cv.update.mockResolvedValue({ id: 'cv-1', fileName: 'cv-new.pdf' });
+    prisma.cv.update.mockResolvedValue({
+      id: 'cv-1',
+      userId: 'user-1',
+      fileName: 'cv-new.pdf',
+      fileUrl: '/tmp/new-private-path',
+      mimeType: 'application/pdf',
+      fileSize: 1024,
+      visibility: CVVisibility.PRIVATE,
+      createdAt: new Date('2026-05-05T18:00:00.000Z'),
+      updatedAt: new Date('2026-05-05T18:30:00.000Z'),
+      encryptionIv: 'new-iv',
+      encryptionAuthTag: 'new-tag',
+    });
 
     await service.uploadCv('user-1', file);
 
-    expect(unlink).toHaveBeenCalledWith('./uploads/cvs/old.pdf');
+    expect(unlink).toHaveBeenCalledWith(expect.stringContaining('uploads/cvs/old.pdf'));
     expect(prisma.cv.update).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
-      data: {
+      data: expect.objectContaining({
         fileName: 'cv-new.pdf',
-        fileUrl: '/uploads/cvs/saved-new.pdf',
         mimeType: 'application/pdf',
         fileSize: 1024,
-      },
+        encryptionIv: 'new-iv',
+        encryptionAuthTag: 'new-tag',
+      }),
     });
   });
 
@@ -131,10 +175,37 @@ describe('CvService', () => {
 
     const result = await service.deleteMyCv('user-1');
 
-    expect(unlink).toHaveBeenCalledWith('./uploads/cvs/current.pdf');
+    expect(unlink).toHaveBeenCalledWith(expect.stringContaining('uploads/cvs/current.pdf'));
     expect(prisma.cv.delete).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
     });
     expect(result).toEqual({ message: 'CV deleted successfully' });
+  });
+
+  it('decrypts an encrypted cv file for the current user', async () => {
+    jest.spyOn(cryptoHelpers, 'decryptCvBuffer').mockReturnValue(
+      Buffer.from('plain-file'),
+    );
+
+    prisma.cv.findUnique.mockResolvedValue({
+      id: 'cv-1',
+      userId: 'user-1',
+      fileName: 'cv.pdf',
+      fileUrl: '/private/cvs/encrypted.bin',
+      mimeType: 'application/pdf',
+      fileSize: 1024,
+      visibility: CVVisibility.PRIVATE,
+      createdAt: new Date('2026-05-05T18:00:00.000Z'),
+      updatedAt: new Date('2026-05-05T18:00:00.000Z'),
+      encryptionIv: 'iv-value',
+      encryptionAuthTag: 'tag-value',
+    });
+    (readFile as jest.Mock).mockResolvedValue(Buffer.from('encrypted-file'));
+
+    const result = await service.getMyCvFile('user-1');
+
+    expect(result.fileName).toBe('cv.pdf');
+    expect(result.mimeType).toBe('application/pdf');
+    expect(result.buffer.toString()).toBe('plain-file');
   });
 });
