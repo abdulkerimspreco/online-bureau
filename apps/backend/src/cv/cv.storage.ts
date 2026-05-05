@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 
 const allowedMimeTypes = [
   'application/pdf',
@@ -23,11 +22,4 @@ export function cvFileFilter(
   callback(null, true);
 }
 
-export const cvStorage = diskStorage({
-  destination: './uploads/cvs',
-  filename: (_req, file, callback) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const extension = extname(file.originalname);
-    callback(null, `cv-${uniqueSuffix}${extension}`);
-  },
-});
+export const cvStorage = memoryStorage();

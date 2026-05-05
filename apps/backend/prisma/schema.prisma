@@ -99,6 +99,8 @@ model Cv {
   fileUrl    String
   mimeType   String
   fileSize   Int
+  encryptionIv String?
+  encryptionAuthTag String?
   visibility CVVisibility @default(PRIVATE)
 
   createdAt  DateTime     @default(now())

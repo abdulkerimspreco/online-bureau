@@ -5,6 +5,8 @@ import {
     Get,
     Patch,
     Post,
+    Res,
+    StreamableFile,
     UploadedFile,
     UseGuards,
     UseInterceptors,
@@ -18,6 +20,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { UpdateCvVisibilityDto } from './dto/update-cv-visibility.dto';
 import { cvFileFilter, cvStorage } from './cv.storage';
 import { CvService } from './cv.service';
+import type { Response } from 'express';
 
 interface AuthUser {
     id: string;
@@ -35,6 +38,20 @@ export class CvController {
     @Get('me')
     getMyCv(@CurrentUser() user: AuthUser) {
         return this.cvService.getMyCv(user.id);
+    }
+
+    @Get('me/file')
+    async getMyCvFile(
+        @CurrentUser() user: AuthUser,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const file = await this.cvService.getMyCvFile(user.id);
+        res.setHeader('Content-Type', file.mimeType);
+        res.setHeader(
+            'Content-Disposition',
+            `inline; filename="${encodeURIComponent(file.fileName)}"`,
+        );
+        return new StreamableFile(file.buffer);
     }
 
     @Post('upload')
