@@ -16,6 +16,12 @@ import type {
   EmployerSearchResponse,
   EmployerSearchResultItem,
 } from '../api/employer-search/employer-search.types';
+import {
+  createSavedSearch,
+  deleteSavedSearch,
+  getSavedSearches,
+} from '../api/saved-searches/saved-searches.api';
+import type { SavedSearch } from '../api/saved-searches/saved-searches.types';
 import { formatDate } from '../utils/functionUtils';
 
 type SearchForm = {
@@ -51,11 +57,17 @@ function buildFilters(form: SearchForm, page: number): EmployerSearchFilters {
 export default function EmployerSearchPage() {
   const { user } = useAuth();
   const [form, setForm] = useState<SearchForm>(emptyForm);
+  const [savedSearchName, setSavedSearchName] = useState('');
   const [tags, setTags] = useState<Tag[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [results, setResults] = useState<EmployerSearchResponse | null>(null);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+  const [isLoadingSavedSearches, setIsLoadingSavedSearches] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSavingSearch, setIsSavingSearch] = useState(false);
+  const [activeSavedSearchId, setActiveSavedSearchId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [savedSearchMessage, setSavedSearchMessage] = useState('');
 
   const isVerifiedEmployer = Boolean(
     user?.role === 'EMPLOYER' && user.isVerified,
@@ -78,17 +90,28 @@ export default function EmployerSearchPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const allTags = await getAllTags();
+        const [allTags, existingSavedSearches] = await Promise.all([
+          getAllTags(),
+          getSavedSearches(),
+        ]);
         setTags(allTags);
+        setSavedSearches(existingSavedSearches);
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Failed to load search filters');
       } finally {
         setIsLoadingTags(false);
+        setIsLoadingSavedSearches(false);
       }
     }
 
-    bootstrap();
-  }, []);
+    if (isVerifiedEmployer) {
+      bootstrap();
+    } else {
+      setIsLoadingTags(false);
+      setIsLoadingSavedSearches(false);
+      setSavedSearches([]);
+    }
+  }, [isVerifiedEmployer]);
 
   useEffect(() => {
     if (isVerifiedEmployer) {
@@ -105,6 +128,7 @@ export default function EmployerSearchPage() {
 
   async function handleClear() {
     setForm(emptyForm);
+    setSavedSearchMessage('');
 
     if (isVerifiedEmployer) {
       await runSearch(1, emptyForm);
@@ -113,6 +137,54 @@ export default function EmployerSearchPage() {
 
   async function goToPage(page: number) {
     await runSearch(page);
+  }
+
+  async function handleSaveSearch() {
+    setError('');
+    setSavedSearchMessage('');
+    setIsSavingSearch(true);
+
+    try {
+      const savedSearch = await createSavedSearch({
+        name: savedSearchName.trim() || 'Saved search',
+        ...buildFilters(form, 1),
+      });
+      setSavedSearches((current) => [savedSearch, ...current]);
+      setSavedSearchName('');
+      setSavedSearchMessage(`Saved "${savedSearch.name}".`);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to save search');
+    } finally {
+      setIsSavingSearch(false);
+    }
+  }
+
+  async function handleApplySavedSearch(savedSearch: SavedSearch) {
+    const nextForm = {
+      query: savedSearch.query ?? '',
+      location: savedSearch.location ?? '',
+      tagId: savedSearch.tagId ?? '',
+    };
+    setForm(nextForm);
+    setSavedSearchMessage(`Applied "${savedSearch.name}".`);
+    await runSearch(1, nextForm);
+  }
+
+  async function handleDeleteSavedSearch(savedSearchId: string) {
+    setError('');
+    setSavedSearchMessage('');
+    setActiveSavedSearchId(savedSearchId);
+
+    try {
+      await deleteSavedSearch(savedSearchId);
+      setSavedSearches((current) =>
+        current.filter((search) => search.id !== savedSearchId),
+      );
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to delete saved search');
+    } finally {
+      setActiveSavedSearchId(null);
+    }
   }
 
   const totalPages = results ? Math.max(1, Math.ceil(results.total / results.perPage)) : 1;
@@ -203,6 +275,106 @@ export default function EmployerSearchPage() {
         </Section>
 
         <Section
+          title="Saved searches"
+          description="Save useful filter combinations and rerun them in one click."
+        >
+          {savedSearchMessage ? (
+            <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {savedSearchMessage}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+            <TextInput
+              label="Search name"
+              placeholder="Backend candidates in Sarajevo"
+              value={savedSearchName}
+              onChange={(e) => setSavedSearchName(e.target.value)}
+              disabled={!isVerifiedEmployer || isSavingSearch}
+            />
+
+            <div className="flex items-end">
+              <Button
+                type="button"
+                fullWidth={false}
+                disabled={!isVerifiedEmployer || isSavingSearch}
+                onClick={handleSaveSearch}
+              >
+                {isSavingSearch ? 'Saving...' : 'Save current filters'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            {!isVerifiedEmployer ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                Verify your employer account to save and reuse searches.
+              </div>
+            ) : isLoadingSavedSearches ? (
+              <p className="text-sm text-slate-500">Loading saved searches...</p>
+            ) : savedSearches.length > 0 ? (
+              <div className="space-y-3">
+                {savedSearches.map((savedSearch) => (
+                  <div
+                    key={savedSearch.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          {savedSearch.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Updated {formatDate(savedSearch.updatedAt)}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {savedSearch.query ? (
+                            <SearchChip label={`Keyword: ${savedSearch.query}`} />
+                          ) : null}
+                          {savedSearch.location ? (
+                            <SearchChip label={`Location: ${savedSearch.location}`} />
+                          ) : null}
+                          {savedSearch.tag ? (
+                            <SearchChip label={`Tag: ${savedSearch.tag.name}`} />
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button
+                          type="button"
+                          fullWidth={false}
+                          className="px-4 py-2"
+                          onClick={() => handleApplySavedSearch(savedSearch)}
+                        >
+                          Run search
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          fullWidth={false}
+                          className="px-4 py-2"
+                          disabled={activeSavedSearchId === savedSearch.id}
+                          onClick={() => handleDeleteSavedSearch(savedSearch.id)}
+                        >
+                          {activeSavedSearchId === savedSearch.id
+                            ? 'Removing...'
+                            : 'Delete'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                No saved searches yet.
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section
           title="Results"
           description={
             results
@@ -257,6 +429,14 @@ export default function EmployerSearchPage() {
         </Section>
       </div>
     </DashboardLayout>
+  );
+}
+
+function SearchChip({ label }: { label: string }) {
+  return (
+    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+      {label}
+    </span>
   );
 }
 

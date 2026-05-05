@@ -11,6 +11,7 @@ import { EmployersModule } from './employers/employers.module';
 import { CvModule } from './cv/cv.module';
 import { TagsModule } from './tags/tags.module';
 import { ContactRequestsModule } from './contact-requests/contact-requests.module';
+import { SavedSearchesModule } from './saved-searches/saved-searches.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ContactRequestsModule } from './contact-requests/contact-requests.modul
     CvModule,
     TagsModule,
     ContactRequestsModule,
+    SavedSearchesModule,
   ],
 })
 export class AppModule { }
