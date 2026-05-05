@@ -8,6 +8,12 @@ import {
 } from '../api/employer-search/employer-search.api';
 import type { EmployerSearchResultItem } from '../api/employer-search/employer-search.types';
 import { createContactRequest } from '../api/contact-requests/contact-requests.api';
+import {
+  addToShortlist,
+  getShortlist,
+  removeFromShortlist,
+} from '../api/shortlist/shortlist.api';
+import type { ShortlistEntry } from '../api/shortlist/shortlist.types';
 import { formatDate } from '../utils/functionUtils';
 
 function parsePreferredCategories(value: string | null) {
@@ -23,8 +29,10 @@ export default function EmployerCandidateProfilePage() {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [candidate, setCandidate] = useState<EmployerSearchResultItem | null>(null);
   const [message, setMessage] = useState('');
+  const [shortlistEntry, setShortlistEntry] = useState<ShortlistEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingShortlist, setIsUpdatingShortlist] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -39,8 +47,14 @@ export default function EmployerCandidateProfilePage() {
       setError('');
 
       try {
-        const data = await getCandidateProfile(candidateId);
+        const [data, shortlist] = await Promise.all([
+          getCandidateProfile(candidateId),
+          getShortlist(),
+        ]);
         setCandidate(data);
+        setShortlistEntry(
+          shortlist.find((entry) => entry.candidateId === candidateId) ?? null,
+        );
       } catch (err: any) {
         setError(
           err?.response?.data?.message || 'Failed to load candidate profile',
@@ -116,6 +130,31 @@ export default function EmployerCandidateProfilePage() {
           ? 'Pending'
           : null;
 
+  async function handleToggleShortlist() {
+    if (!candidate) return;
+
+    setIsUpdatingShortlist(true);
+    setError('');
+
+    try {
+      if (shortlistEntry) {
+        await removeFromShortlist(shortlistEntry.id);
+        setShortlistEntry(null);
+      } else {
+        await addToShortlist(candidate.candidateId);
+        const shortlist = await getShortlist();
+        setShortlistEntry(
+          shortlist.find((entry) => entry.candidateId === candidate.candidateId) ??
+            null,
+        );
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to update shortlist');
+    } finally {
+      setIsUpdatingShortlist(false);
+    }
+  }
+
   return (
     <DashboardLayout
       title="Candidate Profile"
@@ -129,6 +168,22 @@ export default function EmployerCandidateProfilePage() {
           >
             Back to search
           </Link>
+          {candidate ? (
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth={false}
+              className="px-4 py-2"
+              disabled={isUpdatingShortlist}
+              onClick={handleToggleShortlist}
+            >
+              {isUpdatingShortlist
+                ? 'Updating...'
+                : shortlistEntry
+                  ? 'Remove from shortlist'
+                  : 'Add to shortlist'}
+            </Button>
+          ) : null}
         </div>
 
         {error ? (

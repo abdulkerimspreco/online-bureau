@@ -12,6 +12,7 @@ import { CvModule } from './cv/cv.module';
 import { TagsModule } from './tags/tags.module';
 import { ContactRequestsModule } from './contact-requests/contact-requests.module';
 import { SavedSearchesModule } from './saved-searches/saved-searches.module';
+import { ShortlistModule } from './shortlist/shortlist.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { SavedSearchesModule } from './saved-searches/saved-searches.module';
     TagsModule,
     ContactRequestsModule,
     SavedSearchesModule,
+    ShortlistModule,
   ],
 })
 export class AppModule { }

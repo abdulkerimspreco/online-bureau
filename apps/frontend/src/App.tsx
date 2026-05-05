@@ -20,6 +20,7 @@ import EmployerSearchPage from './pages/EmployerSearchPage';
 import EmployerCandidateProfilePage from './pages/EmployerCandidateProfilePage';
 import JobSeekerContactHistoryPage from './pages/JobSeekerContactHistoryPage';
 import EmployerContactHistoryPage from './pages/EmployerContactHistoryPage';
+import EmployerShortlistPage from './pages/EmployerShortlistPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -82,6 +83,7 @@ export default function App() {
           path="/employer/requests"
           element={<EmployerContactHistoryPage />}
         />
+        <Route path="/employer/shortlist" element={<EmployerShortlistPage />} />
         <Route
           path="/employer/candidates/:candidateId"
           element={<EmployerCandidateProfilePage />}

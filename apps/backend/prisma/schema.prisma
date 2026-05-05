@@ -48,6 +48,8 @@ model User {
   sentContactRequests     ContactRequest[] @relation("EmployerContactRequests")
   receivedContactRequests ContactRequest[] @relation("CandidateContactRequests")
   savedSearches    SavedSearch[]
+  shortlistEntries        ShortlistEntry[] @relation("EmployerShortlistEntries")
+  shortlistedBy           ShortlistEntry[] @relation("CandidateShortlistEntries")
 }
 
 model JobSeekerProfile {
@@ -142,4 +144,17 @@ model SavedSearch {
   tag        Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
 
   @@index([employerId, updatedAt])
+}
+
+model ShortlistEntry {
+  id          String   @id @default(uuid())
+  employerId  String
+  candidateId String
+  createdAt   DateTime @default(now())
+
+  employer    User     @relation("EmployerShortlistEntries", fields: [employerId], references: [id], onDelete: Cascade)
+  candidate   User     @relation("CandidateShortlistEntries", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([employerId, candidateId])
+  @@index([employerId, createdAt])
 }
