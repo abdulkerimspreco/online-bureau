@@ -6,6 +6,7 @@ import { SavedSearchesService } from './saved-searches.service';
 type MockedPrisma = {
   tag: {
     findUnique: jest.Mock;
+    findMany: jest.Mock;
   };
   savedSearch: {
     create: jest.Mock;
@@ -23,6 +24,7 @@ describe('SavedSearchesService', () => {
     prisma = {
       tag: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
       },
       savedSearch: {
         create: jest.fn(),
@@ -50,13 +52,15 @@ describe('SavedSearchesService', () => {
   });
 
   it('creates a saved search with tag details', async () => {
-    prisma.tag.findUnique.mockResolvedValue({ id: 'tag-1', name: 'NestJS' });
+    prisma.tag.findMany.mockResolvedValue([{ id: 'tag-1', name: 'NestJS' }]);
     prisma.savedSearch.create.mockResolvedValue({
       id: 'search-1',
       name: 'Backend Sarajevo',
       query: 'backend',
       location: 'Sarajevo',
       tagId: 'tag-1',
+      tagIdsJson: JSON.stringify(['tag-1']),
+      tagMode: null,
       createdAt: new Date('2026-05-04T22:00:00.000Z'),
       updatedAt: new Date('2026-05-04T22:00:00.000Z'),
       tag: { id: 'tag-1', name: 'NestJS' },
@@ -77,8 +81,45 @@ describe('SavedSearchesService', () => {
       },
     );
 
-    expect(result.tag?.name).toBe('NestJS');
+    expect(result.tags[0]?.name).toBe('NestJS');
     expect(prisma.savedSearch.create).toHaveBeenCalled();
+  });
+
+  it('creates a saved search with multiple tags and a tag mode', async () => {
+    prisma.tag.findMany.mockResolvedValue([
+      { id: 'tag-1', name: 'NestJS' },
+      { id: 'tag-2', name: 'React' },
+    ]);
+    prisma.savedSearch.create.mockResolvedValue({
+      id: 'search-2',
+      name: 'Fullstack Sarajevo',
+      query: null,
+      location: 'Sarajevo',
+      tagId: null,
+      tagIdsJson: JSON.stringify(['tag-1', 'tag-2']),
+      tagMode: 'ALL',
+      createdAt: new Date('2026-05-04T22:00:00.000Z'),
+      updatedAt: new Date('2026-05-04T22:00:00.000Z'),
+      tag: null,
+    });
+
+    const result = await service.createForEmployer(
+      {
+        id: 'emp-1',
+        email: 'employer@example.com',
+        role: UserRole.EMPLOYER,
+        isVerified: true,
+      },
+      {
+        name: 'Fullstack Sarajevo',
+        location: 'Sarajevo',
+        tagIds: ['tag-1', 'tag-2'],
+        tagMode: 'ALL' as any,
+      },
+    );
+
+    expect(result.tagIds).toEqual(['tag-1', 'tag-2']);
+    expect(result.tagMode).toBe('ALL');
   });
 
   it('lists employer saved searches', async () => {
@@ -89,6 +130,8 @@ describe('SavedSearchesService', () => {
         query: 'backend',
         location: 'Sarajevo',
         tagId: null,
+        tagIdsJson: null,
+        tagMode: null,
         createdAt: new Date('2026-05-04T22:00:00.000Z'),
         updatedAt: new Date('2026-05-04T22:00:00.000Z'),
         tag: null,

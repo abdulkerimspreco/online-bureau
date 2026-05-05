@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Section from '../components/ui/Section';
 import TextInput from '../components/ui/TextInput';
@@ -31,13 +31,15 @@ import { formatDate } from '../utils/functionUtils';
 type SearchForm = {
   query: string;
   location: string;
-  tagId: string;
+  tagIds: string[];
+  tagMode: 'ANY' | 'ALL';
 };
 
 const emptyForm: SearchForm = {
   query: '',
   location: '',
-  tagId: '',
+  tagIds: [],
+  tagMode: 'ANY',
 };
 
 function parsePreferredCategories(value: string | null) {
@@ -53,7 +55,9 @@ function buildFilters(form: SearchForm, page: number): EmployerSearchFilters {
   return {
     query: form.query.trim() || undefined,
     location: form.location.trim() || undefined,
-    tagId: form.tagId || undefined,
+    tagId: form.tagIds.length === 1 ? form.tagIds[0] : undefined,
+    tagIds: form.tagIds.length > 0 ? form.tagIds : undefined,
+    tagMode: form.tagIds.length > 1 ? form.tagMode : undefined,
     page,
   };
 }
@@ -62,6 +66,7 @@ export default function EmployerSearchPage() {
   const { user } = useAuth();
   const [form, setForm] = useState<SearchForm>(emptyForm);
   const [savedSearchName, setSavedSearchName] = useState('');
+  const [tagToAdd, setTagToAdd] = useState('');
   const [tags, setTags] = useState<Tag[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [shortlistEntries, setShortlistEntries] = useState<ShortlistEntry[]>(
@@ -83,6 +88,14 @@ export default function EmployerSearchPage() {
 
   const isVerifiedEmployer = Boolean(
     user?.role === 'EMPLOYER' && user.isVerified,
+  );
+
+  const selectedTags = useMemo(
+    () =>
+      form.tagIds
+        .map((tagId) => tags.find((tag) => tag.id === tagId))
+        .filter((tag): tag is Tag => Boolean(tag)),
+    [form.tagIds, tags],
   );
 
   async function runSearch(page = 1, nextForm: SearchForm = form) {
@@ -146,6 +159,7 @@ export default function EmployerSearchPage() {
 
   async function handleClear() {
     setForm(emptyForm);
+    setTagToAdd('');
     setSavedSearchMessage('');
 
     if (isVerifiedEmployer) {
@@ -181,9 +195,17 @@ export default function EmployerSearchPage() {
     const nextForm = {
       query: savedSearch.query ?? '',
       location: savedSearch.location ?? '',
-      tagId: savedSearch.tagId ?? '',
-    };
+      tagIds:
+        savedSearch.tagIds.length > 0
+          ? savedSearch.tagIds
+          : savedSearch.tagId
+            ? [savedSearch.tagId]
+            : [],
+      tagMode: savedSearch.tagMode ?? 'ANY',
+    } as SearchForm;
+
     setForm(nextForm);
+    setTagToAdd('');
     setSavedSearchMessage(`Applied "${savedSearch.name}".`);
     await runSearch(1, nextForm);
   }
@@ -232,6 +254,33 @@ export default function EmployerSearchPage() {
     }
   }
 
+  function handleAddTag() {
+    if (!tagToAdd) return;
+
+    setForm((prev) =>
+      prev.tagIds.includes(tagToAdd)
+        ? prev
+        : { ...prev, tagIds: [...prev.tagIds, tagToAdd] },
+    );
+    setTagToAdd('');
+  }
+
+  function removeTag(tagId: string) {
+    setForm((prev) => ({
+      ...prev,
+      tagIds: prev.tagIds.filter((currentTagId) => currentTagId !== tagId),
+    }));
+  }
+
+  function clearSingleFilter(filter: 'query' | 'location' | 'tagMode') {
+    if (filter === 'tagMode') {
+      setForm((prev) => ({ ...prev, tagMode: 'ANY' }));
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, [filter]: '' }));
+  }
+
   const totalPages = results
     ? Math.max(1, Math.ceil(results.total / results.perPage))
     : 1;
@@ -248,70 +297,131 @@ export default function EmployerSearchPage() {
           title="Filters"
           description="Search over visible candidate CVs only. Results are limited to 20 per page."
         >
-          <form
-            className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_auto_auto]"
-            onSubmit={handleSubmit}
-          >
-            <TextInput
-              label="Keyword"
-              placeholder="React, backend, Sarajevo"
-              value={form.query}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, query: e.target.value }))
-              }
-              disabled={!isVerifiedEmployer}
-            />
-
-            <TextInput
-              label="Location"
-              placeholder="Sarajevo"
-              value={form.location}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, location: e.target.value }))
-              }
-              disabled={!isVerifiedEmployer}
-            />
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                Tag
-              </span>
-              <select
-                value={form.tagId}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_auto_auto]">
+              <TextInput
+                label="Keyword"
+                placeholder="React, backend, Sarajevo"
+                value={form.query}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, tagId: e.target.value }))
+                  setForm((prev) => ({ ...prev, query: e.target.value }))
                 }
-                disabled={!isVerifiedEmployer || isLoadingTags}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <option value="">All tags</option>
-                {tags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                disabled={!isVerifiedEmployer}
+              />
 
-            <div className="flex items-end">
-              <Button
-                type="submit"
-                disabled={!isVerifiedEmployer || isSearching}
-                fullWidth={false}
-              >
-                {isSearching ? 'Searching...' : 'Search'}
-              </Button>
+              <TextInput
+                label="Location"
+                placeholder="Sarajevo"
+                value={form.location}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, location: e.target.value }))
+                }
+                disabled={!isVerifiedEmployer}
+              />
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">
+                  Tags
+                </span>
+                <select
+                  value={tagToAdd}
+                  onChange={(e) => setTagToAdd(e.target.value)}
+                  disabled={!isVerifiedEmployer || isLoadingTags}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">Select tag</option>
+                  {tags
+                    .filter((tag) => !form.tagIds.includes(tag.id))
+                    .map((tag) => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  disabled={!isVerifiedEmployer || !tagToAdd}
+                  fullWidth={false}
+                  onClick={handleAddTag}
+                >
+                  Add tag
+                </Button>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  type="submit"
+                  disabled={!isVerifiedEmployer || isSearching}
+                  fullWidth={false}
+                >
+                  {isSearching ? 'Searching...' : 'Search'}
+                </Button>
+              </div>
             </div>
 
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={handleClear}
-                disabled={!isVerifiedEmployer || isSearching}
-                className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Clear
-              </button>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {selectedTags.length > 0 ? (
+                  selectedTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => removeTag(tag.id)}
+                      className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
+                    >
+                      {tag.name}
+                      <span aria-hidden="true">x</span>
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-sm text-slate-500">
+                    No tags selected.
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="inline-flex rounded-2xl bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, tagMode: 'ANY' }))
+                    }
+                    className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                      form.tagMode === 'ANY'
+                        ? 'bg-slate-950 text-white'
+                        : 'text-slate-700'
+                    }`}
+                  >
+                    Match any
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, tagMode: 'ALL' }))
+                    }
+                    className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                      form.tagMode === 'ALL'
+                        ? 'bg-slate-950 text-white'
+                        : 'text-slate-700'
+                    }`}
+                  >
+                    Match all
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  disabled={!isVerifiedEmployer || isSearching}
+                  className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Clear all
+                </button>
+              </div>
             </div>
           </form>
 
@@ -390,8 +500,24 @@ export default function EmployerSearchPage() {
                               label={`Location: ${savedSearch.location}`}
                             />
                           ) : null}
-                          {savedSearch.tag ? (
-                            <SearchChip label={`Tag: ${savedSearch.tag.name}`} />
+                          {savedSearch.tags.length > 0
+                            ? savedSearch.tags.map((tag) => (
+                                <SearchChip
+                                  key={tag.id}
+                                  label={`Tag: ${tag.name}`}
+                                />
+                              ))
+                            : savedSearch.tag ? (
+                                <SearchChip label={`Tag: ${savedSearch.tag.name}`} />
+                              ) : null}
+                          {savedSearch.tags.length > 1 && savedSearch.tagMode ? (
+                            <SearchChip
+                              label={
+                                savedSearch.tagMode === 'ALL'
+                                  ? 'Mode: Match all'
+                                  : 'Mode: Match any'
+                              }
+                            />
                           ) : null}
                         </div>
                       </div>
@@ -427,6 +553,42 @@ export default function EmployerSearchPage() {
                 No saved searches yet.
               </div>
             )}
+          </div>
+        </Section>
+
+        <Section
+          title="Active filters"
+          description="Remove filters individually without resetting the whole search."
+        >
+          <div className="flex flex-wrap gap-2">
+            {form.query ? (
+              <ActiveFilterChip
+                label={`Keyword: ${form.query}`}
+                onRemove={() => clearSingleFilter('query')}
+              />
+            ) : null}
+            {form.location ? (
+              <ActiveFilterChip
+                label={`Location: ${form.location}`}
+                onRemove={() => clearSingleFilter('location')}
+              />
+            ) : null}
+            {selectedTags.map((tag) => (
+              <ActiveFilterChip
+                key={tag.id}
+                label={`Tag: ${tag.name}`}
+                onRemove={() => removeTag(tag.id)}
+              />
+            ))}
+            {selectedTags.length > 1 ? (
+              <ActiveFilterChip
+                label={form.tagMode === 'ALL' ? 'Mode: Match all' : 'Mode: Match any'}
+                onRemove={() => clearSingleFilter('tagMode')}
+              />
+            ) : null}
+            {!form.query && !form.location && selectedTags.length === 0 ? (
+              <span className="text-sm text-slate-500">No active filters.</span>
+            ) : null}
           </div>
         </Section>
 
@@ -506,6 +668,25 @@ function SearchChip({ label }: { label: string }) {
     <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
       {label}
     </span>
+  );
+}
+
+function ActiveFilterChip({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"
+    >
+      {label}
+      <span aria-hidden="true">x</span>
+    </button>
   );
 }
 
