@@ -6,7 +6,10 @@ import {
     UserRole,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { SearchCandidatesDto } from './dto/search-candidates.dto';
+import {
+    SearchCandidatesDto,
+    SearchTagModeDto,
+} from './dto/search-candidates.dto';
 import { UpdateEmployerProfileDto } from './dto/update-employer-profile.dto';
 
 interface AuthUser {
@@ -122,13 +125,34 @@ export class EmployersService {
             });
         }
 
-        if (dto.tagId) {
+        const tagIds = Array.from(
+            new Set([...(dto.tagIds ?? []), ...(dto.tagId ? [dto.tagId] : [])]),
+        );
+
+        if (tagIds.length > 0) {
+            const tagFilter =
+                dto.tagMode === SearchTagModeDto.ALL
+                    ? {
+                        AND: tagIds.map((tagId) => ({
+                            tags: {
+                                some: {
+                                    tagId,
+                                },
+                            },
+                        })),
+                    }
+                    : {
+                        tags: {
+                            some: {
+                                tagId: {
+                                    in: tagIds,
+                                },
+                            },
+                        },
+                    };
+
             filters.push({
-                tags: {
-                    some: {
-                        tagId: dto.tagId,
-                    },
-                },
+                ...tagFilter,
             });
         }
 

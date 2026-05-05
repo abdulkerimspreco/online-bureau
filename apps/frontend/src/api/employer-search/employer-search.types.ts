@@ -2,6 +2,8 @@ export interface EmployerSearchFilters {
   query?: string;
   location?: string;
   tagId?: string;
+  tagIds?: string[];
+  tagMode?: 'ANY' | 'ALL';
   page?: number;
 }
 

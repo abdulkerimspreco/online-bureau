@@ -1,5 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CVVisibility, UserRole } from '@prisma/client';
+import { SearchTagModeDto } from './dto/search-candidates.dto';
 import { EmployersService } from './employers.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -135,6 +136,40 @@ describe('EmployersService', () => {
       page: 1,
       perPage: 20,
     });
+  });
+
+  it('builds ALL-mode multi-tag candidate filtering', async () => {
+    prisma.cv.count.mockResolvedValue(0);
+    prisma.cv.findMany.mockResolvedValue([]);
+
+    await service.searchCandidates(
+      {
+        id: 'user-1',
+        email: 'employer@example.com',
+        role: UserRole.EMPLOYER,
+        isVerified: true,
+      },
+      {
+        tagIds: ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'],
+        tagMode: SearchTagModeDto.ALL,
+        page: 1,
+      },
+    );
+
+    expect(prisma.cv.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              AND: [
+                { tags: { some: { tagId: '11111111-1111-4111-8111-111111111111' } } },
+                { tags: { some: { tagId: '22222222-2222-4222-8222-222222222222' } } },
+              ],
+            }),
+          ]),
+        }),
+      }),
+    );
   });
 
   it('returns a candidate profile for verified employers', async () => {
