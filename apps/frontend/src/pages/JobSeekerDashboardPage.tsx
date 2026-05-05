@@ -196,6 +196,11 @@ export default function JobSeekerDashboardPage() {
               description="See every employer decision and keep accepted contact details in one place."
               to="/job-seeker/requests"
             />
+            <DashboardAction
+              title="Open notification centre"
+              description="Keep unread employer activity and request updates visible in one inbox."
+              to="/job-seeker/notifications"
+            />
           </div>
         </Section>
 
@@ -204,7 +209,7 @@ export default function JobSeekerDashboardPage() {
           description="These features are planned for the next backend/frontend iteration."
         >
           <div className="grid gap-4 md:grid-cols-3">
-            <InfoBlock title="Notifications" text="Track CV updates, profile changes, and employer activity." />
+            <InfoBlock title="Activity feed" text="Keep CV updates, employer responses, and account changes visible in one place." />
             <InfoBlock title="AI review" text="Optional CV review and improvement suggestions." />
             <InfoBlock title="Privacy controls" text="Refine what employers can access as the platform grows." />
           </div>

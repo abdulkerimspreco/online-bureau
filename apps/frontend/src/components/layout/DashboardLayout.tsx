@@ -1,5 +1,6 @@
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { getUnreadNotificationCount } from '../../api/notifications/notifications.api';
 import { useAuth } from '../../context/auth/AuthContext';
 import VerificationBadge from '../ui/VerificationBadge';
 
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
 type NavItem = {
   label: string;
   to: string;
+  notificationAware?: boolean;
 };
 
 const jobSeekerNav: NavItem[] = [
@@ -20,6 +22,7 @@ const jobSeekerNav: NavItem[] = [
   { label: 'My CV', to: '/job-seeker/cv' },
   { label: 'Tags', to: '/job-seeker/tags' },
   { label: 'Requests', to: '/job-seeker/requests' },
+  { label: 'Notifications', to: '/job-seeker/notifications', notificationAware: true },
 ];
 
 const employerNav: NavItem[] = [
@@ -28,6 +31,7 @@ const employerNav: NavItem[] = [
   { label: 'Candidate Search', to: '/employer/search' },
   { label: 'Requests', to: '/employer/requests' },
   { label: 'Shortlist', to: '/employer/shortlist' },
+  { label: 'Notifications', to: '/employer/notifications', notificationAware: true },
 ];
 
 export default function DashboardLayout({
@@ -36,8 +40,39 @@ export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const navItems = user?.role === 'EMPLOYER' ? employerNav : jobSeekerNav;
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadUnreadCount() {
+      try {
+        const response = await getUnreadNotificationCount();
+        if (isActive) {
+          setUnreadCount(response.count);
+        }
+      } catch {
+        if (isActive) {
+          setUnreadCount(0);
+        }
+      }
+    }
+
+    loadUnreadCount();
+
+    const refreshHandler = () => {
+      loadUnreadCount();
+    };
+
+    window.addEventListener('notifications:changed', refreshHandler);
+
+    return () => {
+      isActive = false;
+      window.removeEventListener('notifications:changed', refreshHandler);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -67,7 +102,22 @@ export default function DashboardLayout({
                 }`
               }
             >
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <span>{item.label}</span>
+                  {item.notificationAware && unreadCount > 0 ? (
+                    <span
+                      className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {unreadCount}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -128,7 +178,12 @@ export default function DashboardLayout({
                   }`
                 }
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.notificationAware && unreadCount > 0 ? (
+                  <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                    {unreadCount}
+                  </span>
+                ) : null}
               </NavLink>
             ))}
           </div>

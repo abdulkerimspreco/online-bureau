@@ -75,6 +75,11 @@ export default function EmployerDashboardPage() {
               description="Keep promising candidates together and revisit them quickly."
               to="/employer/shortlist"
             />
+            <DashboardAction
+              title="Open notification centre"
+              description="Review candidate decisions and unread activity without leaving your workspace."
+              to="/employer/notifications"
+            />
           </div>
         </Section>
 
@@ -84,7 +89,7 @@ export default function EmployerDashboardPage() {
         >
           <div className="grid gap-4 md:grid-cols-3">
             <InfoBlock title="Saved searches" text="Save and rerun candidate search filters." />
-            <InfoBlock title="Notifications" text="Track candidate decisions and account activity in one place." />
+            <InfoBlock title="Team inbox" text="Keep follow-up and account updates visible as new employer workflows grow." />
             <InfoBlock title="Hiring pipeline" text="Group candidate outreach and follow-up into a clearer workflow." />
           </div>
         </Section>

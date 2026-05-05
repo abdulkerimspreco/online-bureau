@@ -4,13 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ContactRequestStatus, CVVisibility, UserRole } from '@prisma/client';
+import {
+  ContactRequestStatus,
+  CVVisibility,
+  NotificationType,
+  UserRole,
+} from '@prisma/client';
 import { CreateContactRequestDto } from './dto/create-contact-request.dto';
 import {
   ContactRequestDecision,
   RespondContactRequestDto,
 } from './dto/respond-contact-request.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface AuthUser {
   id: string;
@@ -23,7 +29,10 @@ interface AuthUser {
 export class ContactRequestsService {
   private static readonly DECLINE_COOLDOWN_DAYS = 30;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async createForEmployer(user: AuthUser, dto: CreateContactRequestDto) {
     if (!user.isVerified) {
@@ -127,6 +136,19 @@ export class ContactRequestsService {
     console.log(
       `Contact request email preview for ${candidateCv.user.email}: ${user.email} requested contact with ${candidateCv.user.jobSeekerProfile?.displayName ?? 'candidate'}${message ? ` with message: ${message}` : '.'}`,
     );
+
+    const employerName =
+      contactRequest.employer.employerProfile?.companyName ?? 'An employer';
+    const candidateName =
+      contactRequest.candidate.jobSeekerProfile?.displayName ?? 'your profile';
+
+    await this.notificationsService.create({
+      userId: contactRequest.candidate.id,
+      type: NotificationType.CONTACT_REQUEST_SENT,
+      title: 'New contact request',
+      message: `${employerName} sent you a contact request for ${candidateName}.`,
+      linkUrl: '/job-seeker/dashboard',
+    });
 
     return {
       id: contactRequest.id,
@@ -273,6 +295,26 @@ export class ContactRequestsService {
     console.log(
       `Contact request ${status.toLowerCase()} email preview for ${updatedRequest.employer.email}: ${candidateName} has ${status === ContactRequestStatus.ACCEPTED ? 'accepted' : 'declined'} your contact request from ${employerName}.`,
     );
+
+    await this.notificationsService.create({
+      userId: updatedRequest.employerId,
+      type:
+        status === ContactRequestStatus.ACCEPTED
+          ? NotificationType.CONTACT_REQUEST_ACCEPTED
+          : NotificationType.CONTACT_REQUEST_DECLINED,
+      title:
+        status === ContactRequestStatus.ACCEPTED
+          ? 'Contact request accepted'
+          : 'Contact request declined',
+      message:
+        status === ContactRequestStatus.ACCEPTED
+          ? `${candidateName} accepted your contact request.`
+          : `${candidateName} declined your contact request.`,
+      linkUrl:
+        status === ContactRequestStatus.ACCEPTED
+          ? `/employer/candidates/${updatedRequest.candidate.id}`
+          : '/employer/requests',
+    });
 
     return {
       id: updatedRequest.id,
