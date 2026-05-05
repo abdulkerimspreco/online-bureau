@@ -8,6 +8,7 @@ import {
   CVVisibility,
   UserRole,
 } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactRequestsService } from './contact-requests.service';
 import { ContactRequestDecision } from './dto/respond-contact-request.dto';
@@ -24,9 +25,14 @@ type MockedPrisma = {
   };
 };
 
+type MockedNotificationsService = {
+  create: jest.Mock;
+};
+
 describe('ContactRequestsService', () => {
   let service: ContactRequestsService;
   let prisma: MockedPrisma;
+  let notificationsService: MockedNotificationsService;
 
   beforeEach(() => {
     prisma = {
@@ -41,7 +47,14 @@ describe('ContactRequestsService', () => {
       },
     };
 
-    service = new ContactRequestsService(prisma as unknown as PrismaService);
+    notificationsService = {
+      create: jest.fn(),
+    };
+
+    service = new ContactRequestsService(
+      prisma as unknown as PrismaService,
+      notificationsService as unknown as NotificationsService,
+    );
   });
 
   it('blocks unverified employers from sending requests', async () => {
@@ -167,6 +180,7 @@ describe('ContactRequestsService', () => {
       }),
     );
     expect(result.status).toBe(ContactRequestStatus.PENDING);
+    expect(notificationsService.create).toHaveBeenCalled();
   });
 
   it('returns pending requests for a candidate', async () => {
@@ -273,6 +287,7 @@ describe('ContactRequestsService', () => {
       }),
     );
     expect(result.candidate.email).toBe('candidate@example.com');
+    expect(notificationsService.create).toHaveBeenCalled();
   });
 
   it('rejects responding to an already processed request', async () => {

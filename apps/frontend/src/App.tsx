@@ -21,6 +21,7 @@ import EmployerCandidateProfilePage from './pages/EmployerCandidateProfilePage';
 import JobSeekerContactHistoryPage from './pages/JobSeekerContactHistoryPage';
 import EmployerContactHistoryPage from './pages/EmployerContactHistoryPage';
 import EmployerShortlistPage from './pages/EmployerShortlistPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -71,6 +72,10 @@ export default function App() {
           path="/job-seeker/requests"
           element={<JobSeekerContactHistoryPage />}
         />
+        <Route
+          path="/job-seeker/notifications"
+          element={<NotificationsPage />}
+        />
         <Route path="/job-seeker/cv" element={<CvPage />} />
         <Route path="/job-seeker/tags" element={<TagsPage />} />
       </Route>
@@ -82,6 +87,10 @@ export default function App() {
         <Route
           path="/employer/requests"
           element={<EmployerContactHistoryPage />}
+        />
+        <Route
+          path="/employer/notifications"
+          element={<NotificationsPage />}
         />
         <Route path="/employer/shortlist" element={<EmployerShortlistPage />} />
         <Route

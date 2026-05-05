@@ -13,6 +13,7 @@ import { TagsModule } from './tags/tags.module';
 import { ContactRequestsModule } from './contact-requests/contact-requests.module';
 import { SavedSearchesModule } from './saved-searches/saved-searches.module';
 import { ShortlistModule } from './shortlist/shortlist.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ShortlistModule } from './shortlist/shortlist.module';
     ContactRequestsModule,
     SavedSearchesModule,
     ShortlistModule,
+    NotificationsModule,
   ],
 })
 export class AppModule { }

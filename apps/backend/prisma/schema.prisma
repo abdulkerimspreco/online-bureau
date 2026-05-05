@@ -30,6 +30,12 @@ enum SearchTagMode {
   ALL
 }
 
+enum NotificationType {
+  CONTACT_REQUEST_SENT
+  CONTACT_REQUEST_ACCEPTED
+  CONTACT_REQUEST_DECLINED
+}
+
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
@@ -55,6 +61,7 @@ model User {
   savedSearches    SavedSearch[]
   shortlistEntries        ShortlistEntry[] @relation("EmployerShortlistEntries")
   shortlistedBy           ShortlistEntry[] @relation("CandidateShortlistEntries")
+  notifications           Notification[]
 }
 
 model JobSeekerProfile {
@@ -164,4 +171,20 @@ model ShortlistEntry {
 
   @@unique([employerId, candidateId])
   @@index([employerId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt, createdAt])
 }
