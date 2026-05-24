@@ -38,14 +38,6 @@ export class ShortlistController {
     return this.shortlistService.listFoldersForEmployer(user.id);
   }
 
-  @Post('employer/:candidateId')
-  addForEmployer(
-    @CurrentUser() user: AuthUser,
-    @Param('candidateId') candidateId: string,
-  ) {
-    return this.shortlistService.addForEmployer(user, candidateId);
-  }
-
   @Post('employer/folders')
   createFolderForEmployer(
     @CurrentUser() user: AuthUser,
@@ -65,6 +57,14 @@ export class ShortlistController {
       folderId,
       shortlistEntryId,
     );
+  }
+
+  @Post('employer/:candidateId')
+  addForEmployer(
+    @CurrentUser() user: AuthUser,
+    @Param('candidateId') candidateId: string,
+  ) {
+    return this.shortlistService.addForEmployer(user, candidateId);
   }
 
   @Delete('employer/:shortlistEntryId')

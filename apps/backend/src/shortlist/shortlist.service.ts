@@ -175,12 +175,21 @@ export class ShortlistService {
       throw new BadRequestException('Folder name is required.');
     }
 
-    return this.prisma.shortlistFolder.create({
+    const folder = await this.prisma.shortlistFolder.create({
       data: {
         employerId,
         name: trimmedName,
       },
     });
+
+    return {
+      id: folder.id,
+      name: folder.name,
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+      entryCount: 0,
+      shortlistEntryIds: [],
+    };
   }
 
   async deleteFolderForEmployer(employerId: string, folderId: string) {
