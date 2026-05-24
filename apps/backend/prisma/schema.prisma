@@ -58,6 +58,8 @@ model User {
   cv               Cv?
   sentContactRequests     ContactRequest[] @relation("EmployerContactRequests")
   receivedContactRequests ContactRequest[] @relation("CandidateContactRequests")
+  mutedCompanies          MutedCompany[]   @relation("CandidateMutedCompanies")
+  mutedByCandidates       MutedCompany[]   @relation("EmployerMutedByCandidates")
   savedSearches    SavedSearch[]
   shortlistEntries        ShortlistEntry[] @relation("EmployerShortlistEntries")
   shortlistedBy           ShortlistEntry[] @relation("CandidateShortlistEntries")
@@ -143,6 +145,19 @@ model ContactRequest {
 
   @@index([candidateId, status])
   @@index([employerId, status])
+}
+
+model MutedCompany {
+  candidateId String
+  employerId  String
+  createdAt   DateTime @default(now())
+
+  candidate   User @relation("CandidateMutedCompanies", fields: [candidateId], references: [id], onDelete: Cascade)
+  employer    User @relation("EmployerMutedByCandidates", fields: [employerId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, employerId])
+  @@index([candidateId, createdAt])
+  @@index([employerId, createdAt])
 }
 
 model SavedSearch {

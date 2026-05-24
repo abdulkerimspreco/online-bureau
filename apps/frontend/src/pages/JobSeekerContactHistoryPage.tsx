@@ -3,18 +3,31 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import Section from '../components/ui/Section';
 import { getJobSeekerContactRequestHistory } from '../api/contact-requests/contact-requests.api';
 import type { JobSeekerContactRequestHistoryItem } from '../api/contact-requests/contact-requests.types';
+import Button from '../components/ui/Button';
+import {
+  getMutedCompanies,
+  muteCompany,
+  unmuteCompany,
+} from '../api/muted-companies/muted-companies.api';
 import { formatDate } from '../utils/functionUtils';
 
 export default function JobSeekerContactHistoryPage() {
   const [history, setHistory] = useState<JobSeekerContactRequestHistoryItem[]>([]);
+  const [mutedEmployerIds, setMutedEmployerIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeEmployerId, setActiveEmployerId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     async function loadHistory() {
       try {
-        const items = await getJobSeekerContactRequestHistory();
+        const [items, mutedCompanies] = await Promise.all([
+          getJobSeekerContactRequestHistory(),
+          getMutedCompanies(),
+        ]);
         setHistory(items);
+        setMutedEmployerIds(mutedCompanies.map((company) => company.employerId));
       } catch (err: any) {
         setError(
           err?.response?.data?.message ||
@@ -28,6 +41,34 @@ export default function JobSeekerContactHistoryPage() {
     loadHistory();
   }, []);
 
+  async function handleToggleMute(item: JobSeekerContactRequestHistoryItem) {
+    setError('');
+    setSuccess('');
+    setActiveEmployerId(item.employerId);
+
+    try {
+      if (mutedEmployerIds.includes(item.employerId)) {
+        await unmuteCompany(item.employerId);
+        setMutedEmployerIds((current) =>
+          current.filter((employerId) => employerId !== item.employerId),
+        );
+        setSuccess(`${item.companyName} can discover you again.`);
+      } else {
+        await muteCompany(item.employerId);
+        setMutedEmployerIds((current) => [...current, item.employerId]);
+        setSuccess(
+          `${item.companyName} has been muted and can no longer send new contact requests.`,
+        );
+      }
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || 'Failed to update company mute status',
+      );
+    } finally {
+      setActiveEmployerId(null);
+    }
+  }
+
   return (
     <DashboardLayout
       title="Request History"
@@ -37,6 +78,10 @@ export default function JobSeekerContactHistoryPage() {
         title="Employer request timeline"
         description="Pending, accepted, and declined requests stay here as your contact history."
       >
+        {success ? (
+          <HistoryMessage tone="success">{success}</HistoryMessage>
+        ) : null}
+
         {error ? (
           <HistoryMessage tone="error">{error}</HistoryMessage>
         ) : isLoading ? (
@@ -52,6 +97,9 @@ export default function JobSeekerContactHistoryPage() {
                 subtitle={formatDate(item.updatedAt)}
                 status={item.status}
                 message={item.message}
+                isMuted={mutedEmployerIds.includes(item.employerId)}
+                isUpdatingMute={activeEmployerId === item.employerId}
+                onToggleMute={() => handleToggleMute(item)}
                 detail={
                   item.status === 'ACCEPTED'
                     ? `Employer email: ${item.employerEmail}`
@@ -71,12 +119,18 @@ function HistoryCard({
   subtitle,
   status,
   message,
+  isMuted,
+  isUpdatingMute,
+  onToggleMute,
   detail,
 }: {
   title: string;
   subtitle: string;
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
   message: string | null;
+  isMuted: boolean;
+  isUpdatingMute: boolean;
+  onToggleMute: () => void;
   detail?: string | null;
 }) {
   return (
@@ -94,6 +148,23 @@ function HistoryCard({
       </p>
 
       {detail ? <p className="mt-3 text-sm font-medium text-slate-800">{detail}</p> : null}
+
+      <div className="mt-4">
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth={false}
+          className="px-4 py-2"
+          disabled={isUpdatingMute}
+          onClick={onToggleMute}
+        >
+          {isUpdatingMute
+            ? 'Updating...'
+            : isMuted
+              ? 'Unmute company'
+              : 'Mute company'}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -103,13 +174,15 @@ function HistoryMessage({
   tone = 'neutral',
 }: {
   children: string;
-  tone?: 'neutral' | 'error';
+  tone?: 'neutral' | 'error' | 'success';
 }) {
   return (
     <div
       className={`rounded-2xl px-4 py-3 text-sm ${
         tone === 'error'
           ? 'border border-red-200 bg-red-50 text-red-700'
+          : tone === 'success'
+            ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
           : 'border border-dashed border-slate-300 bg-slate-50 text-slate-600'
       }`}
     >
