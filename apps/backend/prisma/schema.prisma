@@ -61,6 +61,7 @@ model User {
   savedSearches    SavedSearch[]
   shortlistEntries        ShortlistEntry[] @relation("EmployerShortlistEntries")
   shortlistedBy           ShortlistEntry[] @relation("CandidateShortlistEntries")
+  shortlistFolders        ShortlistFolder[]
   notifications           Notification[]
 }
 
@@ -170,9 +171,34 @@ model ShortlistEntry {
 
   employer    User     @relation("EmployerShortlistEntries", fields: [employerId], references: [id], onDelete: Cascade)
   candidate   User     @relation("CandidateShortlistEntries", fields: [candidateId], references: [id], onDelete: Cascade)
+  folderLinks ShortlistFolderEntry[]
 
   @@unique([employerId, candidateId])
   @@index([employerId, createdAt])
+}
+
+model ShortlistFolder {
+  id         String   @id @default(uuid())
+  employerId String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employer   User     @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  entries    ShortlistFolderEntry[]
+
+  @@index([employerId, updatedAt])
+}
+
+model ShortlistFolderEntry {
+  folderId        String
+  shortlistEntryId String
+
+  folder          ShortlistFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  shortlistEntry  ShortlistEntry  @relation(fields: [shortlistEntryId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, shortlistEntryId])
+  @@index([shortlistEntryId])
 }
 
 model Notification {
