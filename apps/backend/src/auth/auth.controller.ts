@@ -25,6 +25,7 @@ interface AuthenticatedRequest extends Request {
         email: string;
         role: string;
         isVerified: boolean;
+        isActive: boolean;
     };
 }
 

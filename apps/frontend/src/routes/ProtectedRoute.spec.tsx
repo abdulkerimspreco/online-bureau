@@ -69,6 +69,7 @@ describe('ProtectedRoute', () => {
         email: 'jobseeker@example.com',
         role: 'JOB_SEEKER',
         isVerified: true,
+        isActive: true,
         createdAt: '2026-05-03T10:00:00.000Z',
       },
       isAuthenticated: true,

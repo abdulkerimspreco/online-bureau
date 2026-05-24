@@ -3,6 +3,7 @@ export interface AuthUser {
   email: string;
   role: 'JOB_SEEKER' | 'EMPLOYER' | 'ADMIN';
   isVerified: boolean;
+  isActive: boolean;
   createdAt: string;
 }
 

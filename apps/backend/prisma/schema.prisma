@@ -42,6 +42,8 @@ model User {
   passwordHash     String
   role             UserRole
   isVerified       Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  deactivatedAt    DateTime?
   failedLoginAttempts Int   @default(0)
   lockoutUntil     DateTime?
   authTokenVersion Int      @default(0)
@@ -65,6 +67,8 @@ model User {
   shortlistedBy           ShortlistEntry[] @relation("CandidateShortlistEntries")
   shortlistFolders        ShortlistFolder[]
   notifications           Notification[]
+  adminActions            AdminActionLog[] @relation("AdminActorActions")
+  targetedAdminActions    AdminActionLog[] @relation("AdminTargetActions")
 }
 
 model JobSeekerProfile {
@@ -230,4 +234,18 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt, createdAt])
+}
+
+model AdminActionLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  targetUserId String
+  action       String
+  createdAt    DateTime @default(now())
+
+  admin        User     @relation("AdminActorActions", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser   User     @relation("AdminTargetActions", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([targetUserId, createdAt])
 }

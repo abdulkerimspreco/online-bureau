@@ -24,6 +24,7 @@ import EmployerShortlistPage from './pages/EmployerShortlistPage';
 import NotificationsPage from './pages/NotificationsPage';
 import JobSeekerPrivacyPage from './pages/JobSeekerPrivacyPage';
 import AdminTagsPage from './pages/AdminTagsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -45,7 +46,7 @@ function HomeRedirect() {
   }
 
   if (user?.role === "ADMIN") {
-    return <Navigate to="/admin/tags" replace />;
+    return <Navigate to="/admin/users" replace />;
   }
 
   return <div style={{ padding: "2rem" }}>Unknown role</div>;
@@ -110,6 +111,7 @@ export default function App() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
+        <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>
     </Routes>

@@ -186,6 +186,10 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
+        if (!user.isActive) {
+            throw new UnauthorizedException('This account has been deactivated.');
+        }
+
         if (user.lockoutUntil && user.lockoutUntil.getTime() <= Date.now()) {
             user = await this.usersService.resetLoginAttempts(user.id);
         }
@@ -374,6 +378,10 @@ export class AuthService {
 
         if (!user) {
             throw new UnauthorizedException('User not found');
+        }
+
+        if (!user.isActive) {
+            throw new UnauthorizedException('Account is deactivated');
         }
 
         return toAuthResponseUser(user);
