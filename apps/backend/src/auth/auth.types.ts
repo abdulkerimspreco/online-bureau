@@ -3,6 +3,7 @@ export interface AuthResponseUser {
   email: string;
   role: string;
   isVerified: boolean;
+  isActive: boolean;
   createdAt: Date;
 }
 

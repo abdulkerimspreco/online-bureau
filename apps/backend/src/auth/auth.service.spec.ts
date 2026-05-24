@@ -24,6 +24,7 @@ function createUser(overrides: Partial<User> = {}): User {
     passwordHash: 'hashed-password',
     role: UserRole.JOB_SEEKER,
     isVerified: true,
+    isActive: true,
     failedLoginAttempts: 0,
     lockoutUntil: null,
     authTokenVersion: 0,

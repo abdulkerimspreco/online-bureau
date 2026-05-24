@@ -35,7 +35,10 @@ const employerNav: NavItem[] = [
   { label: 'Notifications', to: '/employer/notifications', notificationAware: true },
 ];
 
-const adminNav: NavItem[] = [{ label: 'Tags', to: '/admin/tags' }];
+const adminNav: NavItem[] = [
+  { label: 'Users', to: '/admin/users' },
+  { label: 'Tags', to: '/admin/tags' },
+];
 
 export default function DashboardLayout({
   title,

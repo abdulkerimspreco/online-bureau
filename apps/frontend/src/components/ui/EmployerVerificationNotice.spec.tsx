@@ -27,6 +27,7 @@ describe('EmployerVerificationNotice', () => {
         email: 'employer@example.com',
         role: 'EMPLOYER',
         isVerified: false,
+        isActive: true,
         createdAt: '2026-05-03T10:00:00.000Z',
       },
       isAuthenticated: true,

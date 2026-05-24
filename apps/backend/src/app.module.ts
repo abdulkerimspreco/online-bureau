@@ -15,6 +15,7 @@ import { SavedSearchesModule } from './saved-searches/saved-searches.module';
 import { ShortlistModule } from './shortlist/shortlist.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
+import { AdminUsersModule } from './admin-users/admin-users.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
     ShortlistModule,
     NotificationsModule,
     MutedCompaniesModule,
+    AdminUsersModule,
   ],
 })
 export class AppModule { }
