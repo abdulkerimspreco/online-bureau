@@ -3,6 +3,7 @@ import {
     Controller,
     Delete,
     Get,
+    Patch,
     Post,
     Req,
     UseGuards,
@@ -13,6 +14,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { TagsService } from './tags.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateTagDto } from './dto/create-tag.dto';
+import { UpdateTagDto } from './dto/update-tag.dto';
 
 @Controller('tags')
 export class TagsController {
@@ -46,8 +49,29 @@ export class TagsController {
 
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
+    @Get('admin')
+    getAdminTags() {
+        return this.tagsService.getAdminTags();
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
     @Post()
-    createTag(@Body() body: { name: string }) {
+    createTag(@Body() body: CreateTagDto) {
         return this.tagsService.createTag(body.name);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @Patch(':tagId')
+    renameTag(@Param('tagId') tagId: string, @Body() body: UpdateTagDto) {
+        return this.tagsService.renameTag(tagId, body.name);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @Delete(':tagId')
+    deleteTag(@Param('tagId') tagId: string) {
+        return this.tagsService.deleteTag(tagId);
     }
 }
