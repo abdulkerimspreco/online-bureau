@@ -22,6 +22,7 @@ import JobSeekerContactHistoryPage from './pages/JobSeekerContactHistoryPage';
 import EmployerContactHistoryPage from './pages/EmployerContactHistoryPage';
 import EmployerShortlistPage from './pages/EmployerShortlistPage';
 import NotificationsPage from './pages/NotificationsPage';
+import JobSeekerPrivacyPage from './pages/JobSeekerPrivacyPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -67,6 +68,10 @@ export default function App() {
         <Route
           path="/job-seeker/profile"
           element={<JobSeekerProfilePage />}
+        />
+        <Route
+          path="/job-seeker/privacy"
+          element={<JobSeekerPrivacyPage />}
         />
         <Route
           path="/job-seeker/requests"

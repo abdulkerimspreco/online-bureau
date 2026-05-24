@@ -14,6 +14,7 @@ import { ContactRequestsModule } from './contact-requests/contact-requests.modul
 import { SavedSearchesModule } from './saved-searches/saved-searches.module';
 import { ShortlistModule } from './shortlist/shortlist.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     SavedSearchesModule,
     ShortlistModule,
     NotificationsModule,
+    MutedCompaniesModule,
   ],
 })
 export class AppModule { }

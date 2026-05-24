@@ -19,6 +19,7 @@ type NavItem = {
 const jobSeekerNav: NavItem[] = [
   { label: 'Overview', to: '/job-seeker/dashboard' },
   { label: 'Profile', to: '/job-seeker/profile' },
+  { label: 'Privacy', to: '/job-seeker/privacy' },
   { label: 'My CV', to: '/job-seeker/cv' },
   { label: 'Tags', to: '/job-seeker/tags' },
   { label: 'Requests', to: '/job-seeker/requests' },

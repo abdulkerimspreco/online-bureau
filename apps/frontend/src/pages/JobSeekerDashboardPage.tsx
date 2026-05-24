@@ -8,6 +8,7 @@ import {
   getPendingContactRequests,
   respondToContactRequest,
 } from '../api/contact-requests/contact-requests.api';
+import { muteCompany } from '../api/muted-companies/muted-companies.api';
 import type { PendingContactRequest } from '../api/contact-requests/contact-requests.types';
 
 export default function JobSeekerDashboardPage() {
@@ -53,6 +54,28 @@ export default function JobSeekerDashboardPage() {
     } catch (err: any) {
       setRequestsError(
         err?.response?.data?.message || 'Failed to update contact request',
+      );
+    } finally {
+      setActiveRequestId(null);
+    }
+  }
+
+  async function handleMuteCompany(request: PendingContactRequest) {
+    setRequestsError('');
+    setRequestActionMessage('');
+    setActiveRequestId(request.id);
+
+    try {
+      await muteCompany(request.employerId);
+      setPendingRequests((current) =>
+        current.filter((item) => item.id !== request.id),
+      );
+      setRequestActionMessage(
+        `${request.companyName} has been muted and can no longer send new contact requests.`,
+      );
+    } catch (err: any) {
+      setRequestsError(
+        err?.response?.data?.message || 'Failed to mute company',
       );
     } finally {
       setActiveRequestId(null);
@@ -126,6 +149,16 @@ export default function JobSeekerDashboardPage() {
                     >
                       Decline
                     </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      fullWidth={false}
+                      className="min-w-[140px] px-4 py-2"
+                      disabled={activeRequestId === request.id}
+                      onClick={() => handleMuteCompany(request)}
+                    >
+                      Mute company
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -195,6 +228,11 @@ export default function JobSeekerDashboardPage() {
               title="Review request history"
               description="See every employer decision and keep accepted contact details in one place."
               to="/job-seeker/requests"
+            />
+            <DashboardAction
+              title="Manage privacy settings"
+              description="Mute companies that should no longer discover you or send new requests."
+              to="/job-seeker/privacy"
             />
             <DashboardAction
               title="Open notification centre"

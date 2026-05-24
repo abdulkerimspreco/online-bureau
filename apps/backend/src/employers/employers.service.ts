@@ -103,6 +103,11 @@ export class EmployersService {
                         jobSeekerProfile: {
                             isNot: null,
                         },
+                        mutedCompanies: {
+                            none: {
+                                employerId: user.id,
+                            },
+                        },
                     },
                 },
             },
@@ -290,6 +295,11 @@ export class EmployersService {
                     role: UserRole.JOB_SEEKER,
                     jobSeekerProfile: {
                         isNot: null,
+                    },
+                    mutedCompanies: {
+                        none: {
+                            employerId: user.id,
+                        },
                     },
                 },
             },

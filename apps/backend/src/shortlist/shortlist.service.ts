@@ -35,6 +35,11 @@ export class ShortlistService {
           jobSeekerProfile: {
             isNot: null,
           },
+          mutedCompanies: {
+            none: {
+              employerId: user.id,
+            },
+          },
         },
       },
     });
@@ -68,6 +73,13 @@ export class ShortlistService {
     const entries = await this.prisma.shortlistEntry.findMany({
       where: {
         employerId,
+        candidate: {
+          mutedCompanies: {
+            none: {
+              employerId,
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

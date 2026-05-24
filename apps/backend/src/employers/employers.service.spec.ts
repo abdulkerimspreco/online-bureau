@@ -114,6 +114,21 @@ describe('EmployersService', () => {
     expect(prisma.cv.count).toHaveBeenCalled();
     expect(prisma.cv.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              user: {
+                is: expect.objectContaining({
+                  mutedCompanies: {
+                    none: {
+                      employerId: 'user-1',
+                    },
+                  },
+                }),
+              },
+            }),
+          ]),
+        }),
         skip: 0,
         take: 20,
       }),
@@ -214,6 +229,19 @@ describe('EmployersService', () => {
       'job-seeker-1',
     );
 
+    expect(prisma.cv.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          user: expect.objectContaining({
+            mutedCompanies: {
+              none: {
+                employerId: 'user-1',
+              },
+            },
+          }),
+        }),
+      }),
+    );
     expect(result.candidateId).toBe('job-seeker-1');
     expect(result.tags).toEqual([{ id: 'tag-1', name: 'NestJS' }]);
     expect(result.contactRequest?.contactEmail).toBe('candidate@example.com');
