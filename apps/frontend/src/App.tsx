@@ -23,6 +23,7 @@ import EmployerContactHistoryPage from './pages/EmployerContactHistoryPage';
 import EmployerShortlistPage from './pages/EmployerShortlistPage';
 import NotificationsPage from './pages/NotificationsPage';
 import JobSeekerPrivacyPage from './pages/JobSeekerPrivacyPage';
+import AdminTagsPage from './pages/AdminTagsPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -41,6 +42,10 @@ function HomeRedirect() {
 
   if (user?.role === "EMPLOYER") {
     return <Navigate to="/employer/dashboard" replace />;
+  }
+
+  if (user?.role === "ADMIN") {
+    return <Navigate to="/admin/tags" replace />;
   }
 
   return <div style={{ padding: "2rem" }}>Unknown role</div>;
@@ -102,6 +107,10 @@ export default function App() {
           path="/employer/candidates/:candidateId"
           element={<EmployerCandidateProfilePage />}
         />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
+        <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>
     </Routes>
   );

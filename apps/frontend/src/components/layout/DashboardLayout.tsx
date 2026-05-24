@@ -35,6 +35,8 @@ const employerNav: NavItem[] = [
   { label: 'Notifications', to: '/employer/notifications', notificationAware: true },
 ];
 
+const adminNav: NavItem[] = [{ label: 'Tags', to: '/admin/tags' }];
+
 export default function DashboardLayout({
   title,
   subtitle,
@@ -43,7 +45,12 @@ export default function DashboardLayout({
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const navItems = user?.role === 'EMPLOYER' ? employerNav : jobSeekerNav;
+  const navItems =
+    user?.role === 'EMPLOYER'
+      ? employerNav
+      : user?.role === 'ADMIN'
+        ? adminNav
+        : jobSeekerNav;
 
   useEffect(() => {
     let isActive = true;
@@ -150,7 +157,11 @@ export default function DashboardLayout({
           <div className="flex items-center justify-between px-5 py-4 lg:px-8">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                {user?.role === 'EMPLOYER' ? 'Employer Portal' : 'Candidate Portal'}
+                {user?.role === 'EMPLOYER'
+                  ? 'Employer Portal'
+                  : user?.role === 'ADMIN'
+                    ? 'Admin Portal'
+                    : 'Candidate Portal'}
               </p>
               <h2 className="mt-1 text-xl font-semibold text-slate-950">
                 {title}

@@ -4,3 +4,8 @@ export interface Tag {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface AdminTag extends Tag {
+  cvCount: number;
+  savedSearchCount: number;
+}
