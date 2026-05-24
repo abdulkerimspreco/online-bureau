@@ -73,6 +73,11 @@ export class ShortlistService {
         createdAt: 'desc',
       },
       include: {
+        folderLinks: {
+          include: {
+            folder: true,
+          },
+        },
         candidate: {
           select: {
             id: true,
@@ -130,9 +135,177 @@ export class ShortlistService {
               latestContactRequest?.status === ContactRequestStatus.ACCEPTED
                 ? entry.candidate.email
                 : null,
+            folders: entry.folderLinks.map((folderLink) => ({
+              id: folderLink.folder.id,
+              name: folderLink.folder.name,
+            })),
           };
         }),
     );
+  }
+
+  async listFoldersForEmployer(employerId: string) {
+    const folders = await this.prisma.shortlistFolder.findMany({
+      where: {
+        employerId,
+      },
+      orderBy: [
+        { updatedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      include: {
+        entries: true,
+      },
+    });
+
+    return folders.map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+      entryCount: folder.entries.length,
+      shortlistEntryIds: folder.entries.map((entry) => entry.shortlistEntryId),
+    }));
+  }
+
+  async createFolderForEmployer(employerId: string, name: string) {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      throw new BadRequestException('Folder name is required.');
+    }
+
+    return this.prisma.shortlistFolder.create({
+      data: {
+        employerId,
+        name: trimmedName,
+      },
+    });
+  }
+
+  async deleteFolderForEmployer(employerId: string, folderId: string) {
+    const folder = await this.prisma.shortlistFolder.findFirst({
+      where: {
+        id: folderId,
+        employerId,
+      },
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Shortlist folder not found.');
+    }
+
+    await this.prisma.shortlistFolder.delete({
+      where: {
+        id: folderId,
+      },
+    });
+
+    return { success: true };
+  }
+
+  async addEntryToFolderForEmployer(
+    employerId: string,
+    folderId: string,
+    shortlistEntryId: string,
+  ) {
+    const [folder, shortlistEntry] = await Promise.all([
+      this.prisma.shortlistFolder.findFirst({
+        where: {
+          id: folderId,
+          employerId,
+        },
+      }),
+      this.prisma.shortlistEntry.findFirst({
+        where: {
+          id: shortlistEntryId,
+          employerId,
+        },
+      }),
+    ]);
+
+    if (!folder) {
+      throw new NotFoundException('Shortlist folder not found.');
+    }
+
+    if (!shortlistEntry) {
+      throw new NotFoundException('Shortlist entry not found.');
+    }
+
+    const existingLink = await this.prisma.shortlistFolderEntry.findUnique({
+      where: {
+        folderId_shortlistEntryId: {
+          folderId,
+          shortlistEntryId,
+        },
+      },
+    });
+
+    if (existingLink) {
+      throw new BadRequestException('Candidate is already in this folder.');
+    }
+
+    await this.prisma.shortlistFolderEntry.create({
+      data: {
+        folderId,
+        shortlistEntryId,
+      },
+    });
+
+    return { success: true };
+  }
+
+  async removeEntryFromFolderForEmployer(
+    employerId: string,
+    folderId: string,
+    shortlistEntryId: string,
+  ) {
+    const [folder, shortlistEntry] = await Promise.all([
+      this.prisma.shortlistFolder.findFirst({
+        where: {
+          id: folderId,
+          employerId,
+        },
+      }),
+      this.prisma.shortlistEntry.findFirst({
+        where: {
+          id: shortlistEntryId,
+          employerId,
+        },
+      }),
+    ]);
+
+    if (!folder) {
+      throw new NotFoundException('Shortlist folder not found.');
+    }
+
+    if (!shortlistEntry) {
+      throw new NotFoundException('Shortlist entry not found.');
+    }
+
+    const existingLink = await this.prisma.shortlistFolderEntry.findUnique({
+      where: {
+        folderId_shortlistEntryId: {
+          folderId,
+          shortlistEntryId,
+        },
+      },
+    });
+
+    if (!existingLink) {
+      throw new NotFoundException('Folder entry not found.');
+    }
+
+    await this.prisma.shortlistFolderEntry.delete({
+      where: {
+        folderId_shortlistEntryId: {
+          folderId,
+          shortlistEntryId,
+        },
+      },
+    });
+
+    return { success: true };
   }
 
   async removeForEmployer(employerId: string, shortlistEntryId: string) {

@@ -13,6 +13,10 @@ export interface ShortlistEntry {
   addedAt: string;
   contactRequestStatus: 'PENDING' | 'ACCEPTED' | 'DECLINED' | null;
   contactEmail: string | null;
+  folders: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface CreateShortlistEntryResponse {
@@ -20,4 +24,13 @@ export interface CreateShortlistEntryResponse {
   employerId: string;
   candidateId: string;
   createdAt?: string;
+}
+
+export interface ShortlistFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  entryCount: number;
+  shortlistEntryIds: string[];
 }
