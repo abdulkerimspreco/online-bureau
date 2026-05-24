@@ -53,6 +53,14 @@ export interface VerificationLinkResponse {
   verificationPreviewUrl: string;
 }
 
+export interface DeleteAccountPayload {
+  password: string;
+}
+
+export interface DeleteAccountResponse {
+  message: string;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
