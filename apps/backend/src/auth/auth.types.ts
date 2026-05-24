@@ -26,3 +26,7 @@ export interface VerificationLinkResponse {
   message: string;
   verificationPreviewUrl: string;
 }
+
+export interface DeleteAccountResponse {
+  message: string;
+}

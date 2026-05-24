@@ -4,6 +4,8 @@ import type {
     ForgotPasswordPayload,
     ForgotPasswordResponse,
     LoginPayload,
+    DeleteAccountPayload,
+    DeleteAccountResponse,
     RegisterEmployerPayload,
     RegisterJobSeekerPayload,
     ResetPasswordPayload,
@@ -64,4 +66,13 @@ export async function getMe() {
 export async function logout() {
     const response = await API.post('/auth/logout');
     return response.data;
+}
+
+export async function deleteAccount(payload: DeleteAccountPayload) {
+    const { data } = await API.post<DeleteAccountResponse>(
+        '/auth/delete-account',
+        payload,
+    );
+
+    return data;
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/auth/AuthContext";
 import AuthLayout from "../components/layout/AuthLayout";
 import Button from "../components/ui/Button";
@@ -8,17 +8,31 @@ import TextInput from "../components/ui/TextInput";
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [form, setForm] = useState({
     email: "",
     password: "",
   });
   const [error, setError] = useState("");
+  const [message, setMessage] = useState(
+    (location.state as { message?: string } | null)?.message ?? "",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const stateMessage = (location.state as { message?: string } | null)?.message;
+
+    if (stateMessage) {
+      setMessage(stateMessage);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   async function handleSubmitLogin(e: React.SubmitEvent) {
     e.preventDefault();
     setError("");
+    setMessage("");
     setIsSubmitting(true);
 
     try {
@@ -69,6 +83,12 @@ export default function LoginPage() {
         {error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+          </div>
+        ) : null}
+
+        {message ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {message}
           </div>
         ) : null}
 

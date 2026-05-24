@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -12,6 +13,8 @@ import type { JobSeekerProfile } from "../api/profile/profile.types";
 import { formatDate } from "../utils/functionUtils";
 import EmployerVerificationNotice from "../components/ui/EmployerVerificationNotice";
 import VerificationBadge from "../components/ui/VerificationBadge";
+import { deleteAccount } from "../api/auth/auth.api";
+import { useAuth } from "../context/auth/AuthContext";
 
 type ProfileForm = {
   displayName: string;
@@ -39,8 +42,13 @@ function serializePreferredCategories(values: string[]) {
 }
 
 export default function JobSeekerProfilePage() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [form, setForm] = useState<ProfileForm>(emptyForm);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,6 +106,44 @@ export default function JobSeekerProfilePage() {
       setError(err?.response?.data?.message || "Failed to update profile");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setDeleteError("");
+    setSuccess("");
+
+    if (!deletePassword.trim()) {
+      setDeleteError("Please confirm your password.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "This permanently deletes your account, CV, tags, and contact history. This action cannot be undone.",
+    );
+
+    if (!confirmed) return;
+
+    setIsDeletingAccount(true);
+
+    try {
+      const response = await deleteAccount({
+        password: deletePassword,
+      });
+      await logout();
+      navigate("/login", {
+        replace: true,
+        state: {
+          message: response.message,
+        },
+      });
+    } catch (err: any) {
+      setDeleteError(
+        err?.response?.data?.message || "Failed to delete account",
+      );
+    } finally {
+      setIsDeletingAccount(false);
     }
   }
 
@@ -210,6 +256,42 @@ export default function JobSeekerProfilePage() {
                 </div>
               </div>
             ) : null}
+          </Card>
+
+          <Card>
+            <p className="text-sm font-medium text-rose-600">Danger zone</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+              Delete account
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This permanently deletes your account, CV, tags, and contact
+              request history. You will be logged out immediately.
+            </p>
+
+            {deleteError ? (
+              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {deleteError}
+              </div>
+            ) : null}
+
+            <form onSubmit={handleDeleteAccount} className="mt-6 space-y-5">
+              <TextInput
+                label="Confirm password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+              />
+
+              <Button
+                type="submit"
+                disabled={isDeletingAccount}
+                fullWidth={false}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeletingAccount ? "Deleting account..." : "Delete account"}
+              </Button>
+            </form>
           </Card>
         </div>
       </div>

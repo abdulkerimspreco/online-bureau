@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     Injectable,
+    NotFoundException,
     UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +9,8 @@ import { JwtService } from '@nestjs/jwt';
 import { User, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { UsersService } from '../users/users.service';
 import { RegisterJobSeekerDto } from './dto/register-job-seeker.dto';
 import { RegisterEmployerDto } from './dto/register-employer.dto';
@@ -18,9 +21,11 @@ import {
     ResetPasswordResponse,
     VerificationLinkResponse,
     VerificationRegistrationResponse,
+    DeleteAccountResponse,
 } from './auth.types';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @Injectable()
 export class AuthService {
@@ -78,6 +83,20 @@ export class AuthService {
         );
 
         return `Too many failed login attempts. Try again in ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}.`;
+    }
+
+    private resolveStoredCvPath(fileUrl: string | null | undefined) {
+        if (!fileUrl) return null;
+
+        if (fileUrl.startsWith('/uploads/')) {
+            return join(process.cwd(), fileUrl.slice(1));
+        }
+
+        if (fileUrl.startsWith('/')) {
+            return fileUrl;
+        }
+
+        return join(process.cwd(), fileUrl);
     }
 
     async registerJobSeeker(
@@ -358,5 +377,45 @@ export class AuthService {
         }
 
         return toAuthResponseUser(user);
+    }
+
+    async deleteAccount(
+        userId: string,
+        dto: DeleteAccountDto,
+    ): Promise<DeleteAccountResponse> {
+        const user = await this.usersService.findAccountForDeletion(userId);
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        const passwordMatches = await this.comparePasswords(
+            dto.password,
+            user.passwordHash,
+        );
+
+        if (!passwordMatches) {
+            throw new UnauthorizedException('Password confirmation failed');
+        }
+
+        const storedCvPath = this.resolveStoredCvPath(user.cv?.fileUrl);
+
+        if (storedCvPath) {
+            try {
+                await unlink(storedCvPath);
+            } catch {
+                // stored file may already be missing
+            }
+        }
+
+        console.log(
+            `Account deletion confirmation email preview for ${user.email}: your Online Bureau account has been permanently deleted.`,
+        );
+
+        await this.usersService.deleteUserAccount(user.id);
+
+        return {
+            message: 'Account deleted successfully.',
+        };
     }
 }

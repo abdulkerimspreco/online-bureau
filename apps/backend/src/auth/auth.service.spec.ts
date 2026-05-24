@@ -47,6 +47,7 @@ describe('AuthService', () => {
     usersService = {
       findByEmail: jest.fn(),
       findById: jest.fn(),
+      findAccountForDeletion: jest.fn(),
       createJobSeeker: jest.fn(),
       createEmployer: jest.fn(),
       findByVerificationToken: jest.fn(),
@@ -58,6 +59,7 @@ describe('AuthService', () => {
       resetLoginAttempts: jest.fn(),
       recordFailedLoginAttempt: jest.fn(),
       verifyUserEmail: jest.fn(),
+      deleteUserAccount: jest.fn(),
     } as unknown as Mocked<UsersService>;
 
     jwtService = {
@@ -260,5 +262,43 @@ describe('AuthService', () => {
       'replacement-hash',
     );
     expect(result.message).toContain('Password reset successfully');
+  });
+
+  it('deletes an account after password confirmation', async () => {
+    const user = createUser({
+      cv: null as any,
+      jobSeekerProfile: null as any,
+      employerProfile: null as any,
+    } as any);
+
+    (usersService.findAccountForDeletion as jest.Mock).mockResolvedValue(user);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (usersService.deleteUserAccount as jest.Mock).mockResolvedValue(user);
+
+    const result = await service.deleteAccount(user.id, {
+      password: 'Password1!',
+    });
+
+    expect(usersService.deleteUserAccount).toHaveBeenCalledWith(user.id);
+    expect(result).toEqual({
+      message: 'Account deleted successfully.',
+    });
+  });
+
+  it('rejects account deletion when password confirmation fails', async () => {
+    const user = createUser({
+      cv: null as any,
+      jobSeekerProfile: null as any,
+      employerProfile: null as any,
+    } as any);
+
+    (usersService.findAccountForDeletion as jest.Mock).mockResolvedValue(user);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+    await expect(
+      service.deleteAccount(user.id, {
+        password: 'wrong-password',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
   });
 });

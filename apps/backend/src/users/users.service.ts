@@ -200,4 +200,21 @@ export class UsersService {
       },
     });
   }
+
+  findAccountForDeletion(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        cv: true,
+        jobSeekerProfile: true,
+        employerProfile: true,
+      },
+    });
+  }
+
+  deleteUserAccount(userId: string) {
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
 }
