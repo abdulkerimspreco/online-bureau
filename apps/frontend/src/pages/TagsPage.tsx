@@ -3,17 +3,25 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import Card from '../components/ui/Card';
 import {
   attachTagToMyCv,
+  createCustomTagRequest,
   getAllTags,
+  getMyCustomTagRequests,
   getMyCvTags,
   removeTagFromMyCv,
 } from '../api/tags/tags.api';
-import type { Tag } from '../api/tags/tags.types';
+import type { CustomTagRequest, Tag } from '../api/tags/tags.types';
+import TextInput from '../components/ui/TextInput';
+import Button from '../components/ui/Button';
+import { formatDate } from '../utils/functionUtils';
 
 export default function TagsPage() {
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [myTags, setMyTags] = useState<Tag[]>([]);
+  const [customRequests, setCustomRequests] = useState<CustomTagRequest[]>([]);
+  const [requestedTagName, setRequestedTagName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [busyTagId, setBusyTagId] = useState<string | null>(null);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -21,9 +29,14 @@ export default function TagsPage() {
     setError('');
 
     try {
-      const [all, mine] = await Promise.all([getAllTags(), getMyCvTags()]);
+      const [all, mine, requests] = await Promise.all([
+        getAllTags(),
+        getMyCvTags(),
+        getMyCustomTagRequests(),
+      ]);
       setAllTags(all);
       setMyTags(mine);
+      setCustomRequests(requests);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load tags');
     } finally {
@@ -71,12 +84,31 @@ export default function TagsPage() {
     }
   }
 
+  async function handleRequestCustomTag(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setIsSubmittingRequest(true);
+
+    try {
+      const request = await createCustomTagRequest(requestedTagName);
+      setCustomRequests((current) => [request, ...current]);
+      setRequestedTagName('');
+      setSuccess(`Requested "${request.requestedName}" for admin review.`);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to request custom tag');
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  }
+
   return (
     <DashboardLayout
       title="My Tags"
       subtitle="Manage the tags attached to your CV so employers can find you more easily."
     >
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card>
           <p className="text-sm font-medium text-slate-500">Attached to your CV</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-900">
@@ -169,6 +201,87 @@ export default function TagsPage() {
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             You need at least 1 tag on your CV, and your backend currently limits a CV to 20 tags.
+          </div>
+        </Card>
+        </div>
+
+        <Card>
+          <p className="text-sm font-medium text-slate-500">Custom tag requests</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+            Need a new tag?
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Request a tag that is missing from the platform. Admins can approve it and attach it to your CV automatically.
+          </p>
+
+          <form
+            onSubmit={handleRequestCustomTag}
+            className="mt-6 flex flex-col gap-3 md:flex-row md:items-end"
+          >
+            <TextInput
+              label="Requested tag"
+              value={requestedTagName}
+              onChange={(e) => setRequestedTagName(e.target.value)}
+              placeholder="Rust"
+            />
+            <Button type="submit" fullWidth={false} disabled={isSubmittingRequest}>
+              {isSubmittingRequest ? 'Submitting...' : 'Request tag'}
+            </Button>
+          </form>
+
+          <div className="mt-6 space-y-3">
+            {isLoading ? (
+              <p className="text-sm text-slate-500">Loading request history...</p>
+            ) : customRequests.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                No custom tag requests yet.
+              </div>
+            ) : (
+              customRequests.map((request) => (
+                <article
+                  key={request.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          {request.requestedName}
+                        </h3>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            request.status === 'APPROVED'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : request.status === 'REJECTED'
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {request.status.toLowerCase()}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Requested {formatDate(request.createdAt)}
+                        {request.reviewedAt
+                          ? ` • reviewed ${formatDate(request.reviewedAt)}`
+                          : ''}
+                      </p>
+                      {request.tag ? (
+                        <p className="mt-2 text-sm text-slate-600">
+                          Linked tag: <span className="font-medium text-slate-900">{request.tag.name}</span>
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {request.reviewedByEmail ? (
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Reviewed by {request.reviewedByEmail}
+                      </p>
+                    ) : null}
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </Card>
       </div>
