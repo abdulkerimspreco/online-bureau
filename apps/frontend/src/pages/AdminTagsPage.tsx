@@ -4,21 +4,26 @@ import Section from '../components/ui/Section';
 import Button from '../components/ui/Button';
 import TextInput from '../components/ui/TextInput';
 import {
+  approveAdminCustomTagRequest,
   createAdminTag,
   deleteAdminTag,
+  getAdminCustomTagRequests,
   getAdminTags,
+  rejectAdminCustomTagRequest,
   renameAdminTag,
 } from '../api/tags/tags.api';
-import type { AdminTag } from '../api/tags/tags.types';
+import type { AdminTag, CustomTagRequest } from '../api/tags/tags.types';
 import { formatDate } from '../utils/functionUtils';
 
 export default function AdminTagsPage() {
   const [tags, setTags] = useState<AdminTag[]>([]);
+  const [requests, setRequests] = useState<CustomTagRequest[]>([]);
   const [newTagName, setNewTagName] = useState('');
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [activeTagId, setActiveTagId] = useState<string | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -27,8 +32,12 @@ export default function AdminTagsPage() {
     setError('');
 
     try {
-      const items = await getAdminTags();
+      const [items, queue] = await Promise.all([
+        getAdminTags(),
+        getAdminCustomTagRequests(),
+      ]);
       setTags(items);
+      setRequests(queue);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load tags');
     } finally {
@@ -108,6 +117,55 @@ export default function AdminTagsPage() {
     }
   }
 
+  async function handleApproveRequest(requestId: string) {
+    setError('');
+    setSuccess('');
+    setActiveRequestId(requestId);
+
+    try {
+      const updatedRequest = await approveAdminCustomTagRequest(requestId);
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === requestId ? updatedRequest : request,
+        ),
+      );
+      await loadTags();
+      setSuccess(`Approved "${updatedRequest.requestedName}".`);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to approve request');
+    } finally {
+      setActiveRequestId(null);
+    }
+  }
+
+  async function handleRejectRequest(requestId: string, requestedName: string) {
+    const note = window.prompt(
+      `Optional note for declining "${requestedName}"`,
+      '',
+    );
+
+    setError('');
+    setSuccess('');
+    setActiveRequestId(requestId);
+
+    try {
+      const updatedRequest = await rejectAdminCustomTagRequest(
+        requestId,
+        note || undefined,
+      );
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === requestId ? updatedRequest : request,
+        ),
+      );
+      setSuccess(`Declined "${updatedRequest.requestedName}".`);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to decline request');
+    } finally {
+      setActiveRequestId(null);
+    }
+  }
+
   return (
     <DashboardLayout
       title="Tag Management"
@@ -132,6 +190,107 @@ export default function AdminTagsPage() {
               {isCreating ? 'Creating...' : 'Create tag'}
             </Button>
           </form>
+        </Section>
+
+        <Section
+          title="Custom tag requests"
+          description="Review job-seeker tag suggestions before they enter the shared platform vocabulary."
+        >
+          {isLoading ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+              Loading request queue...
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+              No custom tag requests yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {requests.map((request) => (
+                <article
+                  key={request.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          {request.requestedName}
+                        </h3>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            request.status === 'APPROVED'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : request.status === 'REJECTED'
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {request.status.toLowerCase()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600">
+                        Requested by{' '}
+                        <span className="font-medium text-slate-900">
+                          {request.requester?.displayName ||
+                            request.requester?.email ||
+                            'Unknown user'}
+                        </span>
+                        {request.requester?.displayName
+                          ? ` (${request.requester.email})`
+                          : ''}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {formatDate(request.createdAt)}
+                        {request.reviewedAt
+                          ? ` • reviewed ${formatDate(request.reviewedAt)}`
+                          : ''}
+                      </p>
+                      {request.tag ? (
+                        <p className="text-sm text-slate-600">
+                          Linked tag:{' '}
+                          <span className="font-medium text-slate-900">
+                            {request.tag.name}
+                          </span>
+                        </p>
+                      ) : null}
+                      {request.reviewedByEmail ? (
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Reviewed by {request.reviewedByEmail}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {request.status === 'PENDING' ? (
+                      <div className="flex flex-wrap gap-2 lg:justify-end">
+                        <Button
+                          type="button"
+                          fullWidth={false}
+                          className="px-4 py-2"
+                          disabled={activeRequestId === request.id}
+                          onClick={() => handleApproveRequest(request.id)}
+                        >
+                          {activeRequestId === request.id ? 'Saving...' : 'Approve'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          fullWidth={false}
+                          className="px-4 py-2"
+                          disabled={activeRequestId === request.id}
+                          onClick={() =>
+                            handleRejectRequest(request.id, request.requestedName)
+                          }
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </Section>
 
         <Section

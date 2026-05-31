@@ -1,11 +1,14 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { TagsService } from './tags.service';
+import { CustomTagRequestStatus, NotificationType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TagsService } from './tags.service';
 
 type MockedPrisma = {
   tag: {
     findMany: jest.Mock;
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
@@ -21,18 +24,29 @@ type MockedPrisma = {
     count: jest.Mock;
     create: jest.Mock;
     deleteMany: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+  };
+  customTagRequest: {
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
   };
 };
 
 describe('TagsService', () => {
   let service: TagsService;
   let prisma: MockedPrisma;
+  let notificationsService: { create: jest.Mock };
 
   beforeEach(() => {
     prisma = {
       tag: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -48,10 +62,26 @@ describe('TagsService', () => {
         count: jest.fn(),
         create: jest.fn(),
         deleteMany: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
+      customTagRequest: {
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
       },
     };
 
-    service = new TagsService(prisma as unknown as PrismaService);
+    notificationsService = {
+      create: jest.fn(),
+    };
+
+    service = new TagsService(
+      prisma as unknown as PrismaService,
+      notificationsService as unknown as NotificationsService,
+    );
   });
 
   it('returns tags ordered by name', async () => {
@@ -110,32 +140,128 @@ describe('TagsService', () => {
     );
   });
 
-  it('translates duplicate attachment failures into a bad request', async () => {
-    prisma.cv.findUnique.mockResolvedValue({ id: 'cv-1' });
-    prisma.cVTag.count.mockResolvedValue(1);
-    prisma.cVTag.create.mockRejectedValue(new Error('duplicate'));
+  it('creates a custom tag request for a job seeker cv', async () => {
+    prisma.cv.findUnique.mockResolvedValue({
+      id: 'cv-1',
+      tags: [],
+    });
+    prisma.tag.findFirst.mockResolvedValue(null);
+    prisma.customTagRequest.findFirst.mockResolvedValue(null);
+    prisma.customTagRequest.create.mockResolvedValue({
+      id: 'request-1',
+      requestedName: 'Rust',
+      status: CustomTagRequestStatus.PENDING,
+      createdAt: new Date('2026-05-31T13:00:00.000Z'),
+      updatedAt: new Date('2026-05-31T13:00:00.000Z'),
+      reviewedAt: null,
+      tag: null,
+      reviewedBy: null,
+    });
 
-    await expect(service.attachTag('user-1', 'tag-1')).rejects.toThrow(
-      BadRequestException,
-    );
-  });
+    const result = await service.createCustomTagRequest('user-1', ' Rust ');
 
-  it('removes a tag from the current user cv', async () => {
-    prisma.cv.findUnique.mockResolvedValue({ id: 'cv-1' });
-
-    const result = await service.removeTag('user-1', 'tag-1');
-
-    expect(prisma.cVTag.deleteMany).toHaveBeenCalledWith({
-      where: {
-        cvId: 'cv-1',
-        tagId: 'tag-1',
+    expect(prisma.customTagRequest.create).toHaveBeenCalledWith({
+      data: {
+        requesterId: 'user-1',
+        requestedName: 'Rust',
+      },
+      include: {
+        tag: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        reviewedBy: {
+          select: {
+            email: true,
+          },
+        },
       },
     });
-    expect(result).toEqual({ message: 'Tag removed successfully' });
+    expect(result.requestedName).toBe('Rust');
+    expect(result.status).toBe(CustomTagRequestStatus.PENDING);
   });
 
-  it('renames an existing tag', async () => {
+  it('approves a custom tag request and notifies the requester', async () => {
+    prisma.customTagRequest.findUnique.mockResolvedValue({
+      id: 'request-1',
+      requesterId: 'candidate-1',
+      requestedName: 'Rust',
+      status: CustomTagRequestStatus.PENDING,
+      requester: {
+        id: 'candidate-1',
+        email: 'test@seeker.com',
+      },
+    });
+    prisma.tag.findFirst.mockResolvedValue(null);
+    prisma.tag.create.mockResolvedValue({
+      id: 'tag-rust',
+      name: 'Rust',
+    });
+    prisma.cv.findUnique.mockResolvedValue({
+      id: 'cv-1',
+    });
+    prisma.cVTag.findUnique.mockResolvedValue(null);
+    prisma.cVTag.count.mockResolvedValue(2);
+    prisma.customTagRequest.update.mockResolvedValue({
+      id: 'request-1',
+      requestedName: 'Rust',
+      status: CustomTagRequestStatus.APPROVED,
+      createdAt: new Date('2026-05-31T13:00:00.000Z'),
+      updatedAt: new Date('2026-05-31T13:10:00.000Z'),
+      reviewedAt: new Date('2026-05-31T13:10:00.000Z'),
+      tag: {
+        id: 'tag-rust',
+        name: 'Rust',
+      },
+      requester: {
+        id: 'candidate-1',
+        email: 'test@seeker.com',
+        jobSeekerProfile: {
+          displayName: 'Candidate',
+        },
+      },
+      reviewedBy: {
+        email: 'js@example.com',
+      },
+    });
+
+    const result = await service.approveCustomTagRequest(
+      'admin-1',
+      'request-1',
+    );
+
+    expect(prisma.cVTag.create).toHaveBeenCalledWith({
+      data: {
+        cvId: 'cv-1',
+        tagId: 'tag-rust',
+      },
+    });
+    expect(notificationsService.create).toHaveBeenCalledWith({
+      userId: 'candidate-1',
+      type: NotificationType.TAG_REQUEST_APPROVED,
+      title: 'Custom tag approved',
+      message:
+        'Your custom tag request for "Rust" was approved and attached to your CV.',
+      linkUrl: '/job-seeker/tags',
+    });
+    expect(result.status).toBe(CustomTagRequestStatus.APPROVED);
+  });
+
+  it('renames an existing tag and notifies affected users', async () => {
     prisma.tag.findUnique.mockResolvedValue({ id: 'tag-1', name: 'NestJS' });
+    prisma.tag.findFirst.mockResolvedValue(null);
+    prisma.cVTag.findMany.mockResolvedValue([
+      {
+        cv: {
+          userId: 'candidate-1',
+        },
+      },
+    ]);
+    prisma.savedSearch.findMany
+      .mockResolvedValueOnce([{ employerId: 'employer-1' }])
+      .mockResolvedValueOnce([]);
     prisma.tag.update.mockResolvedValue({
       id: 'tag-1',
       name: 'Node.js',
@@ -149,25 +275,43 @@ describe('TagsService', () => {
 
     const result = await service.renameTag('tag-1', 'Node.js');
 
-    expect(prisma.tag.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'tag-1' },
-        data: { name: 'Node.js' },
-      }),
-    );
     expect(result.name).toBe('Node.js');
+    expect(notificationsService.create).toHaveBeenCalledWith({
+      userId: 'candidate-1',
+      type: NotificationType.TAG_UPDATED,
+      title: 'A CV tag was updated',
+      message: 'Your "NestJS" CV tag is now called "Node.js".',
+      linkUrl: '/job-seeker/tags',
+    });
+    expect(notificationsService.create).toHaveBeenCalledWith({
+      userId: 'employer-1',
+      type: NotificationType.TAG_UPDATED,
+      title: 'A saved-search tag was updated',
+      message:
+        'A saved-search tag you used was renamed from "NestJS" to "Node.js".',
+      linkUrl: '/employer/search',
+    });
   });
 
-  it('cleans saved search references before deleting a tag', async () => {
+  it('cleans saved search references before deleting a tag and notifies users', async () => {
     prisma.tag.findUnique.mockResolvedValue({ id: 'tag-1', name: 'NestJS' });
-    prisma.savedSearch.findMany.mockResolvedValue([
+    prisma.cVTag.findMany.mockResolvedValue([
       {
-        id: 'saved-1',
-        tagId: 'tag-1',
-        tagIdsJson: JSON.stringify(['tag-1', 'tag-2']),
-        tagMode: 'ALL',
+        cv: {
+          userId: 'candidate-1',
+        },
       },
     ]);
+    prisma.savedSearch.findMany
+      .mockResolvedValueOnce([{ employerId: 'employer-1' }])
+      .mockResolvedValueOnce([
+        {
+          id: 'saved-1',
+          tagId: 'tag-1',
+          tagIdsJson: JSON.stringify(['tag-1', 'tag-2']),
+          tagMode: 'ALL',
+        },
+      ]);
 
     const result = await service.deleteTag('tag-1');
 
@@ -181,6 +325,21 @@ describe('TagsService', () => {
     });
     expect(prisma.tag.delete).toHaveBeenCalledWith({
       where: { id: 'tag-1' },
+    });
+    expect(notificationsService.create).toHaveBeenCalledWith({
+      userId: 'candidate-1',
+      type: NotificationType.TAG_REMOVED,
+      title: 'A CV tag was removed',
+      message: 'The "NestJS" tag was retired and removed from your CV.',
+      linkUrl: '/job-seeker/tags',
+    });
+    expect(notificationsService.create).toHaveBeenCalledWith({
+      userId: 'employer-1',
+      type: NotificationType.TAG_REMOVED,
+      title: 'A saved-search tag was removed',
+      message:
+        'The "NestJS" tag was retired and removed from your saved search filters.',
+      linkUrl: '/employer/search',
     });
     expect(result).toEqual({ success: true });
   });
