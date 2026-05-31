@@ -61,6 +61,7 @@ describe('AuthService', () => {
       recordFailedLoginAttempt: jest.fn(),
       verifyUserEmail: jest.fn(),
       deleteUserAccount: jest.fn(),
+      createAccountDeletionAudit: jest.fn(),
     } as unknown as Mocked<UsersService>;
 
     jwtService = {
@@ -275,14 +276,29 @@ describe('AuthService', () => {
     (usersService.findAccountForDeletion as jest.Mock).mockResolvedValue(user);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
     (usersService.deleteUserAccount as jest.Mock).mockResolvedValue(user);
+    (usersService.createAccountDeletionAudit as jest.Mock).mockResolvedValue({
+      receiptCode: 'DEL-IGNORED',
+      completedAt: new Date('2026-05-31T12:30:00.000Z'),
+    });
 
     const result = await service.deleteAccount(user.id, {
       password: 'Password1!',
     });
 
     expect(usersService.deleteUserAccount).toHaveBeenCalledWith(user.id);
+    expect(usersService.createAccountDeletionAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deletedEmail: user.email,
+        deletedRole: user.role,
+        hadCv: false,
+      }),
+    );
     expect(result).toEqual({
       message: 'Account deleted successfully.',
+      receiptCode: expect.stringMatching(/^DEL-[A-F0-9]{8}$/),
+      completedAt: '2026-05-31T12:30:00.000Z',
+      summary:
+        'Your account data was removed immediately and a deletion receipt was recorded for support follow-up.',
     });
   });
 

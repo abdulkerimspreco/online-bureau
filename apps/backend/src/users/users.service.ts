@@ -217,4 +217,16 @@ export class UsersService {
       where: { id: userId },
     });
   }
+
+  createAccountDeletionAudit(params: {
+    receiptCode: string;
+    deletedEmail: string;
+    deletedRole: UserRole;
+    hadCv: boolean;
+    requestedAt: Date;
+  }) {
+    return this.prisma.accountDeletionAudit.create({
+      data: params,
+    });
+  }
 }

@@ -136,6 +136,9 @@ export default function JobSeekerProfilePage() {
         replace: true,
         state: {
           message: response.message,
+          deletionReceiptCode: response.receiptCode,
+          deletionCompletedAt: response.completedAt,
+          deletionSummary: response.summary,
         },
       });
     } catch (err: any) {

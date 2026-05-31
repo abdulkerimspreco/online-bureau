@@ -30,4 +30,7 @@ export interface VerificationLinkResponse {
 
 export interface DeleteAccountResponse {
   message: string;
+  receiptCode: string;
+  completedAt: string;
+  summary: string;
 }

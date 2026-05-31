@@ -367,3 +367,15 @@ model AdminActionLog {
   @@index([adminId, createdAt])
   @@index([targetUserId, createdAt])
 }
+
+model AccountDeletionAudit {
+  id           String   @id @default(uuid())
+  receiptCode  String   @unique
+  deletedEmail String
+  deletedRole  UserRole
+  hadCv        Boolean  @default(false)
+  requestedAt  DateTime
+  completedAt  DateTime @default(now())
+
+  @@index([completedAt])
+}
