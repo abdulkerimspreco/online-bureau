@@ -19,6 +19,7 @@ import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { AdminCvModerationModule } from './admin-cv-moderation/admin-cv-moderation.module';
 import { CvReviewModule } from './cv-review/cv-review.module';
+import { OpsMonitoringModule } from './ops-monitoring/ops-monitoring.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CvReviewModule } from './cv-review/cv-review.module';
     AdminAnalyticsModule,
     AdminCvModerationModule,
     CvReviewModule,
+    OpsMonitoringModule,
   ],
 })
 export class AppModule { }
