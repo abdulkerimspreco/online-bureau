@@ -235,6 +235,11 @@ export default function JobSeekerDashboardPage() {
               to="/job-seeker/privacy"
             />
             <DashboardAction
+              title="Respond to CV review requests"
+              description="Review any admin moderation requests, grant or decline preview access, and track outcomes."
+              to="/job-seeker/cv-moderation"
+            />
+            <DashboardAction
               title="Open notification centre"
               description="Keep unread employer activity and request updates visible in one inbox."
               to="/job-seeker/notifications"

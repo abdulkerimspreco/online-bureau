@@ -21,6 +21,7 @@ const jobSeekerNav: NavItem[] = [
   { label: 'Profile', to: '/job-seeker/profile' },
   { label: 'Privacy', to: '/job-seeker/privacy' },
   { label: 'My CV', to: '/job-seeker/cv' },
+  { label: 'CV Review', to: '/job-seeker/cv-moderation' },
   { label: 'Tags', to: '/job-seeker/tags' },
   { label: 'Requests', to: '/job-seeker/requests' },
   { label: 'Notifications', to: '/job-seeker/notifications', notificationAware: true },
@@ -38,6 +39,7 @@ const employerNav: NavItem[] = [
 const adminNav: NavItem[] = [
   { label: 'Users', to: '/admin/users' },
   { label: 'Analytics', to: '/admin/analytics' },
+  { label: 'CV Review', to: '/admin/cv-moderation' },
   { label: 'Tags', to: '/admin/tags' },
 ];
 

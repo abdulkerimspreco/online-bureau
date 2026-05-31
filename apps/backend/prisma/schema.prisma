@@ -34,6 +34,19 @@ enum NotificationType {
   CONTACT_REQUEST_SENT
   CONTACT_REQUEST_ACCEPTED
   CONTACT_REQUEST_DECLINED
+  CV_MODERATION_REVIEW_REQUESTED
+  CV_MODERATION_CONSENT_GRANTED
+  CV_MODERATION_CONSENT_DECLINED
+  CV_MODERATION_DISMISSED
+  CV_MODERATION_ESCALATED
+}
+
+enum CvModerationStatus {
+  AWAITING_CONSENT
+  PREVIEW_GRANTED
+  DECLINED
+  DISMISSED
+  ESCALATED
 }
 
 model User {
@@ -69,6 +82,8 @@ model User {
   notifications           Notification[]
   adminActions            AdminActionLog[] @relation("AdminActorActions")
   targetedAdminActions    AdminActionLog[] @relation("AdminTargetActions")
+  moderationCases         CvModerationCase[] @relation("CandidateModerationCases")
+  flaggedModerationCases  CvModerationCase[] @relation("AdminFlaggedModerationCases")
 }
 
 model JobSeekerProfile {
@@ -115,6 +130,7 @@ model Cv {
 
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags       CVTag[]
+  moderationCases CvModerationCase[]
 }
 
 model Tag {
@@ -234,6 +250,31 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt, createdAt])
+}
+
+model CvModerationCase {
+  id                  String             @id @default(uuid())
+  candidateId         String
+  cvId                String
+  flaggedByAdminId    String
+  reason              String?
+  previousVisibility  CVVisibility?
+  status              CvModerationStatus @default(AWAITING_CONSENT)
+  consentDeadlineAt   DateTime
+  candidateRespondedAt DateTime?
+  previewGrantedAt    DateTime?
+  previewExpiresAt    DateTime?
+  resolvedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  candidate           User               @relation("CandidateModerationCases", fields: [candidateId], references: [id], onDelete: Cascade)
+  cv                  Cv                 @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  flaggedByAdmin      User               @relation("AdminFlaggedModerationCases", fields: [flaggedByAdminId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, createdAt])
+  @@index([flaggedByAdminId, createdAt])
+  @@index([status, createdAt])
 }
 
 model AdminActionLog {
