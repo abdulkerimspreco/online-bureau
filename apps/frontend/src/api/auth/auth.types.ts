@@ -60,6 +60,9 @@ export interface DeleteAccountPayload {
 
 export interface DeleteAccountResponse {
   message: string;
+  receiptCode: string;
+  completedAt: string;
+  summary: string;
 }
 
 export interface LoginPayload {

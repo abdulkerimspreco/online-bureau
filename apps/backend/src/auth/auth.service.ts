@@ -62,6 +62,10 @@ export class AuthService {
         return randomBytes(32).toString('hex');
     }
 
+    private createDeletionReceiptCode(): string {
+        return `DEL-${randomBytes(4).toString('hex').toUpperCase()}`;
+    }
+
     private buildVerificationPreviewUrl(token: string): string {
         const frontendUrl =
             this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
@@ -406,6 +410,9 @@ export class AuthService {
             throw new UnauthorizedException('Password confirmation failed');
         }
 
+        const requestedAt = new Date();
+        const receiptCode = this.createDeletionReceiptCode();
+
         const storedCvPath = this.resolveStoredCvPath(user.cv?.fileUrl);
 
         if (storedCvPath) {
@@ -416,14 +423,26 @@ export class AuthService {
             }
         }
 
-        console.log(
-            `Account deletion confirmation email preview for ${user.email}: your Online Bureau account has been permanently deleted.`,
-        );
-
         await this.usersService.deleteUserAccount(user.id);
+
+        const audit = await this.usersService.createAccountDeletionAudit({
+            receiptCode,
+            deletedEmail: user.email,
+            deletedRole: user.role,
+            hadCv: Boolean(user.cv),
+            requestedAt,
+        });
+
+        console.log(
+            `[ACCOUNT_DELETION_RECEIPT:${receiptCode}] ${user.email} was permanently deleted at ${audit.completedAt.toISOString()}.`,
+        );
 
         return {
             message: 'Account deleted successfully.',
+            receiptCode,
+            completedAt: audit.completedAt.toISOString(),
+            summary:
+                'Your account data was removed immediately and a deletion receipt was recorded for support follow-up.',
         };
     }
 }

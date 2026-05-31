@@ -18,6 +18,15 @@ export default function LoginPage() {
   const [message, setMessage] = useState(
     (location.state as { message?: string } | null)?.message ?? "",
   );
+  const [deletionReceiptCode, setDeletionReceiptCode] = useState(
+    (location.state as { deletionReceiptCode?: string } | null)?.deletionReceiptCode ?? "",
+  );
+  const [deletionCompletedAt, setDeletionCompletedAt] = useState(
+    (location.state as { deletionCompletedAt?: string } | null)?.deletionCompletedAt ?? "",
+  );
+  const [deletionSummary, setDeletionSummary] = useState(
+    (location.state as { deletionSummary?: string } | null)?.deletionSummary ?? "",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -25,6 +34,18 @@ export default function LoginPage() {
 
     if (stateMessage) {
       setMessage(stateMessage);
+      setDeletionReceiptCode(
+        (location.state as { deletionReceiptCode?: string } | null)
+          ?.deletionReceiptCode ?? "",
+      );
+      setDeletionCompletedAt(
+        (location.state as { deletionCompletedAt?: string } | null)
+          ?.deletionCompletedAt ?? "",
+      );
+      setDeletionSummary(
+        (location.state as { deletionSummary?: string } | null)
+          ?.deletionSummary ?? "",
+      );
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location.pathname, location.state, navigate]);
@@ -33,6 +54,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setMessage("");
+    setDeletionReceiptCode("");
+    setDeletionCompletedAt("");
+    setDeletionSummary("");
     setIsSubmitting(true);
 
     try {
@@ -88,7 +112,19 @@ export default function LoginPage() {
 
         {message ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {message}
+            <p className="font-medium">{message}</p>
+            {deletionSummary ? (
+              <p className="mt-2">{deletionSummary}</p>
+            ) : null}
+            {deletionReceiptCode ? (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-white/70 px-3 py-2 text-xs text-emerald-900">
+                <p className="font-semibold">Deletion receipt</p>
+                <p className="mt-1">Reference: {deletionReceiptCode}</p>
+                {deletionCompletedAt ? (
+                  <p className="mt-1">Completed: {new Date(deletionCompletedAt).toLocaleString()}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
