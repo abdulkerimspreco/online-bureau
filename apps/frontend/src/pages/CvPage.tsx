@@ -146,7 +146,7 @@ export default function CvPage() {
       const result = await createCvReview();
       setReview(result);
       setSuccess(
-        "AI review completed. This app saved only the structured feedback for this run.",
+        "AI review completed. We saved only the structured feedback for this run.",
       );
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to review CV");
@@ -367,7 +367,8 @@ export default function CvPage() {
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                 Reviews run only when you request them. This app stores only the
                 final feedback, not the raw CV text. OpenAI response storage is
-                disabled for the review request.
+                disabled for the request, and slow provider calls are canceled
+                automatically so the page does not hang forever.
               </p>
             </div>
 
@@ -402,6 +403,22 @@ export default function CvPage() {
                 <p>
                   Reviewed {formatDate(review.createdAt)} against the CV version last
                   updated on {formatDate(review.sourceCvUpdatedAt)}.
+                </p>
+                <p className="mt-2">
+                  Review mode: <span className="font-medium text-slate-800">opt-in</span>.
+                  App raw-text storage:{" "}
+                  <span className="font-medium text-slate-800">
+                    {review.appStoresRawCvText ? "enabled" : "disabled"}
+                  </span>
+                  . Provider response storage:{" "}
+                  <span className="font-medium text-slate-800">
+                    {review.providerResponseStorage}
+                  </span>
+                  . Timeout safeguard:{" "}
+                  <span className="font-medium text-slate-800">
+                    {Math.round(review.requestTimeoutMs / 1000)}s
+                  </span>
+                  .
                 </p>
                 {!review.isCurrentVersion ? (
                   <p className="mt-2 text-amber-700">

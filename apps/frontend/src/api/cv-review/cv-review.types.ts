@@ -12,4 +12,8 @@ export interface CvReviewResult {
   sourceCvUpdatedAt: string;
   createdAt: string;
   isCurrentVersion: boolean;
+  reviewMode: 'OPT_IN';
+  appStoresRawCvText: boolean;
+  providerResponseStorage: 'disabled';
+  requestTimeoutMs: number;
 }
