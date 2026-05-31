@@ -28,6 +28,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
 import JobSeekerCvModerationPage from './pages/JobSeekerCvModerationPage';
 import AdminCvModerationPage from './pages/AdminCvModerationPage';
+import AdminOpsPage from './pages/AdminOpsPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -120,6 +121,7 @@ export default function App() {
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+        <Route path="/admin/ops" element={<AdminOpsPage />} />
         <Route path="/admin/cv-moderation" element={<AdminCvModerationPage />} />
         <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>

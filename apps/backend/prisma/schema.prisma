@@ -49,6 +49,11 @@ enum CvModerationStatus {
   ESCALATED
 }
 
+enum OpsAlertSeverity {
+  WARN
+  CRITICAL
+}
+
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
@@ -300,6 +305,21 @@ model CvReview {
 
   @@index([userId, createdAt])
   @@index([cvId, createdAt])
+}
+
+model OpsAlert {
+  id          String           @id @default(uuid())
+  metricKey   String
+  route       String
+  message     String
+  severity    OpsAlertSeverity
+  thresholdMs Int
+  observedMs  Int
+  createdAt   DateTime         @default(now())
+  resolvedAt  DateTime?
+
+  @@index([metricKey, createdAt])
+  @@index([severity, createdAt])
 }
 
 model AdminActionLog {

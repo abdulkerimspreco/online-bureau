@@ -5,7 +5,9 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "benchmark:search": "node ./scripts/benchmark-search.mjs",
+    "benchmark:upload": "node ./scripts/benchmark-upload.mjs"
   },
   "dependencies": {
     "turbo": "^2.9.5",
