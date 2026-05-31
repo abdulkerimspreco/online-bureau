@@ -84,6 +84,7 @@ model User {
   targetedAdminActions    AdminActionLog[] @relation("AdminTargetActions")
   moderationCases         CvModerationCase[] @relation("CandidateModerationCases")
   flaggedModerationCases  CvModerationCase[] @relation("AdminFlaggedModerationCases")
+  cvReviews               CvReview[]
 }
 
 model JobSeekerProfile {
@@ -131,6 +132,7 @@ model Cv {
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags       CVTag[]
   moderationCases CvModerationCase[]
+  reviews    CvReview[]
 }
 
 model Tag {
@@ -275,6 +277,29 @@ model CvModerationCase {
   @@index([candidateId, createdAt])
   @@index([flaggedByAdminId, createdAt])
   @@index([status, createdAt])
+}
+
+model CvReview {
+  id                 String   @id @default(uuid())
+  userId             String
+  cvId               String
+  provider           String
+  strengthsJson      String
+  improvementsJson   String
+  suggestionsJson    String
+  keywordMatchesJson String?
+  structureScore     Int
+  clarityScore       Int
+  keywordScore       Int
+  completenessScore  Int
+  sourceCvUpdatedAt  DateTime
+  createdAt          DateTime @default(now())
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cv                 Cv       @relation(fields: [cvId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([cvId, createdAt])
 }
 
 model AdminActionLog {

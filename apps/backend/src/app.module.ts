@@ -18,6 +18,7 @@ import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { AdminCvModerationModule } from './admin-cv-moderation/admin-cv-moderation.module';
+import { CvReviewModule } from './cv-review/cv-review.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AdminCvModerationModule } from './admin-cv-moderation/admin-cv-moderati
     AdminUsersModule,
     AdminAnalyticsModule,
     AdminCvModerationModule,
+    CvReviewModule,
   ],
 })
 export class AppModule { }
