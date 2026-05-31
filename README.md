@@ -64,7 +64,18 @@ ER diagram:
 
 ### External API Integration
 
-There is currently no external third-party API integration in the project. Communication between frontend and backend is handled through REST APIs exposed by the NestJS backend.
+The project currently integrates with the OpenAI Responses API for the optional AI CV review workflow.
+
+- provider: OpenAI
+- model: `gpt-5.5`
+- app behavior:
+  - review is opt-in only
+  - the app stores only structured feedback and scores
+  - raw CV text is not stored by the application
+  - OpenAI response storage is disabled for the request
+  - slow provider calls are canceled by a backend timeout safeguard
+
+Communication between frontend and backend is handled through REST APIs exposed by the NestJS backend.
 
 ## Initial Release Features
 
@@ -123,5 +134,5 @@ npm run dev
 
 ## Notes
 
-- Uploaded CV files are stored locally in the backend uploads directory for the current milestone implementation.
+- CV files are stored locally in backend-managed private storage and served through authenticated access.
 - The repository is being delivered incrementally through smaller feature branches and pull requests.

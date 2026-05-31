@@ -119,7 +119,41 @@ describe('CvReviewService', () => {
     expect(result.strengths.length).toBeGreaterThan(0);
     expect(result.keywordMatches).toContain('React');
     expect(result.isCurrentVersion).toBe(true);
+    expect(result.reviewMode).toBe('OPT_IN');
+    expect(result.appStoresRawCvText).toBe(false);
+    expect(result.providerResponseStorage).toBe('disabled');
+    expect(result.requestTimeoutMs).toBe(45000);
     expect(prisma.cvReview.create).toHaveBeenCalled();
+    fetchMock.mockRestore();
+  });
+
+  it('returns a friendly timeout message when the provider is too slow', async () => {
+    const updatedAt = new Date('2026-05-31T10:00:00.000Z');
+    prisma.cv.findUnique.mockResolvedValue({
+      id: 'cv-1',
+      userId: 'user-1',
+      fileName: 'cv.pdf',
+      updatedAt,
+      tags: [],
+      user: {
+        jobSeekerProfile: {
+          preferredJobCategories: '',
+          location: 'Sarajevo',
+        },
+      },
+    });
+    cvService.getCvFileForUser.mockResolvedValue({
+      buffer: Buffer.from('Summary Experience Education'),
+    });
+
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    const fetchMock = jest.spyOn(global, 'fetch' as any).mockRejectedValue(abortError);
+
+    await expect(service.createForUser('user-1')).rejects.toThrow(
+      'AI review took too long and was canceled.',
+    );
+
     fetchMock.mockRestore();
   });
 });

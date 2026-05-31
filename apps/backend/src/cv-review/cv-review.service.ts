@@ -22,6 +22,8 @@ type ReviewPayload = {
 export class CvReviewService {
   private static readonly PROVIDER = 'openai:gpt-5.5';
   private static readonly OPENAI_URL = 'https://api.openai.com/v1/responses';
+  private static readonly REQUEST_TIMEOUT_MS = 45_000;
+  private static readonly MAX_CV_TEXT_CHARS = 16_000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -78,6 +80,7 @@ export class CvReviewService {
 
     const file = await this.cvService.getCvFileForUser(userId);
     const extractedText = this.extractSearchableText(file.buffer);
+    const trimmedText = extractedText.slice(0, CvReviewService.MAX_CV_TEXT_CHARS);
 
     const tagNames = cv.tags.map((entry) => entry.tag.name);
     const preferredCategories =
@@ -88,7 +91,7 @@ export class CvReviewService {
 
     const reviewPayload = await this.buildReviewPayload({
       fileName: cv.fileName,
-      text: extractedText,
+      text: trimmedText,
       tagNames,
       preferredCategories,
       location: cv.user.jobSeekerProfile?.location ?? '',
@@ -153,109 +156,122 @@ export class CvReviewService {
     };
 
     try {
-      const response = await fetch(CvReviewService.OPENAI_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-5.5',
-          store: false,
-          reasoning: {
-            effort: 'medium',
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        CvReviewService.REQUEST_TIMEOUT_MS,
+      );
+      let response: Response;
+
+      try {
+        response = await fetch(CvReviewService.OPENAI_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
           },
-          max_output_tokens: 1200,
-          instructions:
-            'You are an expert CV reviewer. Review only the provided CV text. Do not mention hidden chain-of-thought. Return concise, practical feedback for a job seeker.',
-          input: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'input_text',
-                  text: [
-                    'Review this CV text for structure, clarity, keyword alignment, and completeness.',
-                    'Use the provided candidate metadata only as supporting context.',
-                    `File name: ${input.fileName}`,
-                    `Profile location: ${input.location || 'Not provided'}`,
-                    `Preferred categories: ${input.preferredCategories.join(', ') || 'None provided'}`,
-                    `CV/tag keywords: ${keywordPool.join(', ') || 'None provided'}`,
-                    'CV text begins below:',
-                    input.text || 'No readable CV text could be extracted.',
-                  ].join('\n\n'),
-                },
-              ],
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: 'gpt-5.5',
+            store: false,
+            reasoning: {
+              effort: 'medium',
             },
-          ],
-          text: {
-            format: {
-              type: 'json_schema',
-              name: 'cv_review',
-              strict: true,
-              schema: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                  strengths: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    minItems: 1,
-                    maxItems: 5,
+            max_output_tokens: 1200,
+            instructions:
+              'You are an expert CV reviewer. Review only the provided CV text. Do not mention hidden chain-of-thought. Return concise, practical feedback for a job seeker.',
+            input: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'input_text',
+                    text: [
+                      'Review this CV text for structure, clarity, keyword alignment, and completeness.',
+                      'Use the provided candidate metadata only as supporting context.',
+                      `If the CV text looks truncated, still provide the best concise review you can from the available content.`,
+                      `File name: ${input.fileName}`,
+                      `Profile location: ${input.location || 'Not provided'}`,
+                      `Preferred categories: ${input.preferredCategories.join(', ') || 'None provided'}`,
+                      `CV/tag keywords: ${keywordPool.join(', ') || 'None provided'}`,
+                      'CV text begins below:',
+                      input.text || 'No readable CV text could be extracted.',
+                    ].join('\n\n'),
                   },
-                  improvements: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    minItems: 1,
-                    maxItems: 5,
-                  },
-                  suggestions: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    minItems: 1,
-                    maxItems: 5,
-                  },
-                  keywordMatches: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    maxItems: 10,
-                  },
-                  structureScore: {
-                    type: 'integer',
-                    minimum: 1,
-                    maximum: 5,
-                  },
-                  clarityScore: {
-                    type: 'integer',
-                    minimum: 1,
-                    maximum: 5,
-                  },
-                  keywordScore: {
-                    type: 'integer',
-                    minimum: 1,
-                    maximum: 5,
-                  },
-                  completenessScore: {
-                    type: 'integer',
-                    minimum: 1,
-                    maximum: 5,
-                  },
-                },
-                required: [
-                  'strengths',
-                  'improvements',
-                  'suggestions',
-                  'keywordMatches',
-                  'structureScore',
-                  'clarityScore',
-                  'keywordScore',
-                  'completenessScore',
                 ],
               },
+            ],
+            text: {
+              format: {
+                type: 'json_schema',
+                name: 'cv_review',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    strengths: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      minItems: 1,
+                      maxItems: 5,
+                    },
+                    improvements: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      minItems: 1,
+                      maxItems: 5,
+                    },
+                    suggestions: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      minItems: 1,
+                      maxItems: 5,
+                    },
+                    keywordMatches: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      maxItems: 10,
+                    },
+                    structureScore: {
+                      type: 'integer',
+                      minimum: 1,
+                      maximum: 5,
+                    },
+                    clarityScore: {
+                      type: 'integer',
+                      minimum: 1,
+                      maximum: 5,
+                    },
+                    keywordScore: {
+                      type: 'integer',
+                      minimum: 1,
+                      maximum: 5,
+                    },
+                    completenessScore: {
+                      type: 'integer',
+                      minimum: 1,
+                      maximum: 5,
+                    },
+                  },
+                  required: [
+                    'strengths',
+                    'improvements',
+                    'suggestions',
+                    'keywordMatches',
+                    'structureScore',
+                    'clarityScore',
+                    'keywordScore',
+                    'completenessScore',
+                  ],
+                },
+              },
             },
-          },
-        }),
-      });
+          }),
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -264,6 +280,16 @@ export class CvReviewService {
 
       payload = (await response.json()) as typeof payload;
     } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.name === 'AbortError' || error.message.includes('aborted'))
+      ) {
+        throw this.createReviewUnavailableError(
+          `Timed out after ${CvReviewService.REQUEST_TIMEOUT_MS}ms while waiting for OpenAI.`,
+          'AI review took too long and was canceled. Please try again in a moment.',
+        );
+      }
+
       const detail =
         error instanceof Error ? error.message : 'Unknown AI review error.';
       throw this.createReviewUnavailableError(detail);
@@ -316,12 +342,12 @@ export class CvReviewService {
     return Math.max(min, Math.min(max, value));
   }
 
-  private createReviewUnavailableError(detail: string) {
+  private createReviewUnavailableError(detail: string, publicMessage?: string) {
     const referenceCode = `CVR-${Date.now().toString(36).toUpperCase()}`;
     console.error(`[AI_CV_REVIEW_ERROR:${referenceCode}] ${detail}`);
 
     return new ServiceUnavailableException(
-      `AI review is temporarily unavailable. Reference code: ${referenceCode}.`,
+      `${publicMessage ?? 'AI review is temporarily unavailable.'} Reference code: ${referenceCode}.`,
     );
   }
 
@@ -359,6 +385,10 @@ export class CvReviewService {
       createdAt: review.createdAt,
       isCurrentVersion:
         review.sourceCvUpdatedAt.getTime() === currentCvUpdatedAt.getTime(),
+      reviewMode: 'OPT_IN',
+      appStoresRawCvText: false,
+      providerResponseStorage: 'disabled',
+      requestTimeoutMs: CvReviewService.REQUEST_TIMEOUT_MS,
     };
   }
 }
