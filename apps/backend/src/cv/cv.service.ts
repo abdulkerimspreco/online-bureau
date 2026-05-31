@@ -109,6 +109,10 @@ export class CvService {
     }
 
     async getMyCvFile(userId: string) {
+        return this.getCvFileForUser(userId);
+    }
+
+    async getCvFileForUser(userId: string) {
         const cv = await this.prisma.cv.findUnique({
             where: { userId },
         });

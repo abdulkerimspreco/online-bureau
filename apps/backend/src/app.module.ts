@@ -17,6 +17,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
+import { AdminCvModerationModule } from './admin-cv-moderation/admin-cv-moderation.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
     MutedCompaniesModule,
     AdminUsersModule,
     AdminAnalyticsModule,
+    AdminCvModerationModule,
   ],
 })
 export class AppModule { }

@@ -6,6 +6,7 @@ import { CvService } from './cv.service';
 @Module({
   imports: [PrismaModule],
   controllers: [CvController],
-  providers: [CvService]
+  providers: [CvService],
+  exports: [CvService],
 })
 export class CvModule {}

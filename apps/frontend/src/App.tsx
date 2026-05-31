@@ -26,6 +26,8 @@ import JobSeekerPrivacyPage from './pages/JobSeekerPrivacyPage';
 import AdminTagsPage from './pages/AdminTagsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
+import JobSeekerCvModerationPage from './pages/JobSeekerCvModerationPage';
+import AdminCvModerationPage from './pages/AdminCvModerationPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -88,6 +90,10 @@ export default function App() {
           path="/job-seeker/notifications"
           element={<NotificationsPage />}
         />
+        <Route
+          path="/job-seeker/cv-moderation"
+          element={<JobSeekerCvModerationPage />}
+        />
         <Route path="/job-seeker/cv" element={<CvPage />} />
         <Route path="/job-seeker/tags" element={<TagsPage />} />
       </Route>
@@ -114,6 +120,7 @@ export default function App() {
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+        <Route path="/admin/cv-moderation" element={<AdminCvModerationPage />} />
         <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>
     </Routes>
