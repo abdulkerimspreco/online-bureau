@@ -16,6 +16,7 @@ import { ShortlistModule } from './shortlist/shortlist.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
+import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AdminUsersModule } from './admin-users/admin-users.module';
     NotificationsModule,
     MutedCompaniesModule,
     AdminUsersModule,
+    AdminAnalyticsModule,
   ],
 })
 export class AppModule { }

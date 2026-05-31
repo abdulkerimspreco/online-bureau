@@ -37,6 +37,7 @@ const employerNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { label: 'Users', to: '/admin/users' },
+  { label: 'Analytics', to: '/admin/analytics' },
   { label: 'Tags', to: '/admin/tags' },
 ];
 

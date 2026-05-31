@@ -25,6 +25,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import JobSeekerPrivacyPage from './pages/JobSeekerPrivacyPage';
 import AdminTagsPage from './pages/AdminTagsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -112,6 +113,7 @@ export default function App() {
 
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>
     </Routes>
