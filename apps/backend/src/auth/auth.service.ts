@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     Injectable,
+    NotFoundException,
     UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +9,8 @@ import { JwtService } from '@nestjs/jwt';
 import { User, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { UsersService } from '../users/users.service';
 import { RegisterJobSeekerDto } from './dto/register-job-seeker.dto';
 import { RegisterEmployerDto } from './dto/register-employer.dto';
@@ -18,9 +21,11 @@ import {
     ResetPasswordResponse,
     VerificationLinkResponse,
     VerificationRegistrationResponse,
+    DeleteAccountResponse,
 } from './auth.types';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @Injectable()
 export class AuthService {
@@ -57,6 +62,10 @@ export class AuthService {
         return randomBytes(32).toString('hex');
     }
 
+    private createDeletionReceiptCode(): string {
+        return `DEL-${randomBytes(4).toString('hex').toUpperCase()}`;
+    }
+
     private buildVerificationPreviewUrl(token: string): string {
         const frontendUrl =
             this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
@@ -78,6 +87,20 @@ export class AuthService {
         );
 
         return `Too many failed login attempts. Try again in ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}.`;
+    }
+
+    private resolveStoredCvPath(fileUrl: string | null | undefined) {
+        if (!fileUrl) return null;
+
+        if (fileUrl.startsWith('/uploads/')) {
+            return join(process.cwd(), fileUrl.slice(1));
+        }
+
+        if (fileUrl.startsWith('/')) {
+            return fileUrl;
+        }
+
+        return join(process.cwd(), fileUrl);
     }
 
     async registerJobSeeker(
@@ -165,6 +188,10 @@ export class AuthService {
 
         if (!user) {
             throw new UnauthorizedException('Invalid credentials');
+        }
+
+        if (!user.isActive) {
+            throw new UnauthorizedException('This account has been deactivated.');
         }
 
         if (user.lockoutUntil && user.lockoutUntil.getTime() <= Date.now()) {
@@ -357,6 +384,65 @@ export class AuthService {
             throw new UnauthorizedException('User not found');
         }
 
+        if (!user.isActive) {
+            throw new UnauthorizedException('Account is deactivated');
+        }
+
         return toAuthResponseUser(user);
+    }
+
+    async deleteAccount(
+        userId: string,
+        dto: DeleteAccountDto,
+    ): Promise<DeleteAccountResponse> {
+        const user = await this.usersService.findAccountForDeletion(userId);
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        const passwordMatches = await this.comparePasswords(
+            dto.password,
+            user.passwordHash,
+        );
+
+        if (!passwordMatches) {
+            throw new UnauthorizedException('Password confirmation failed');
+        }
+
+        const requestedAt = new Date();
+        const receiptCode = this.createDeletionReceiptCode();
+
+        const storedCvPath = this.resolveStoredCvPath(user.cv?.fileUrl);
+
+        if (storedCvPath) {
+            try {
+                await unlink(storedCvPath);
+            } catch {
+                // stored file may already be missing
+            }
+        }
+
+        await this.usersService.deleteUserAccount(user.id);
+
+        const audit = await this.usersService.createAccountDeletionAudit({
+            receiptCode,
+            deletedEmail: user.email,
+            deletedRole: user.role,
+            hadCv: Boolean(user.cv),
+            requestedAt,
+        });
+
+        console.log(
+            `[ACCOUNT_DELETION_RECEIPT:${receiptCode}] ${user.email} was permanently deleted at ${audit.completedAt.toISOString()}.`,
+        );
+
+        return {
+            message: 'Account deleted successfully.',
+            receiptCode,
+            completedAt: audit.completedAt.toISOString(),
+            summary:
+                'Your account data was removed immediately and a deletion receipt was recorded for support follow-up.',
+        };
     }
 }

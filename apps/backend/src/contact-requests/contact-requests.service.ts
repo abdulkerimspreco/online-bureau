@@ -58,6 +58,11 @@ export class ContactRequestsService {
           jobSeekerProfile: {
             isNot: null,
           },
+          mutedCompanies: {
+            none: {
+              employerId: user.id,
+            },
+          },
         },
       },
       include: {

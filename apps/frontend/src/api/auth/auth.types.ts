@@ -3,6 +3,7 @@ export interface AuthUser {
   email: string;
   role: 'JOB_SEEKER' | 'EMPLOYER' | 'ADMIN';
   isVerified: boolean;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -51,6 +52,17 @@ export interface ResetPasswordResponse {
 export interface VerificationLinkResponse {
   message: string;
   verificationPreviewUrl: string;
+}
+
+export interface DeleteAccountPayload {
+  password: string;
+}
+
+export interface DeleteAccountResponse {
+  message: string;
+  receiptCode: string;
+  completedAt: string;
+  summary: string;
 }
 
 export interface LoginPayload {

@@ -17,6 +17,7 @@ export interface AuthUser {
     email: string;
     role: UserRole;
     isVerified: boolean;
+    isActive: boolean;
 }
 
 @Injectable()
@@ -43,11 +44,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             throw new UnauthorizedException('Session expired');
         }
 
+        if (!user.isActive) {
+            throw new UnauthorizedException('Account is deactivated');
+        }
+
         return {
             id: user.id,
             email: user.email,
             role: user.role,
             isVerified: user.isVerified,
+            isActive: user.isActive,
         };
     }
 }

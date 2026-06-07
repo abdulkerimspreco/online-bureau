@@ -7,6 +7,7 @@ export function toAuthResponseUser(user: User): AuthResponseUser {
     email: user.email,
     role: user.role,
     isVerified: user.isVerified,
+    isActive: user.isActive,
     createdAt: user.createdAt,
   };
 }

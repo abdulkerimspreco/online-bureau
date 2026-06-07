@@ -34,6 +34,34 @@ enum NotificationType {
   CONTACT_REQUEST_SENT
   CONTACT_REQUEST_ACCEPTED
   CONTACT_REQUEST_DECLINED
+  TAG_REQUEST_APPROVED
+  TAG_REQUEST_REJECTED
+  TAG_UPDATED
+  TAG_REMOVED
+  CV_MODERATION_REVIEW_REQUESTED
+  CV_MODERATION_CONSENT_GRANTED
+  CV_MODERATION_CONSENT_DECLINED
+  CV_MODERATION_DISMISSED
+  CV_MODERATION_ESCALATED
+}
+
+enum CvModerationStatus {
+  AWAITING_CONSENT
+  PREVIEW_GRANTED
+  DECLINED
+  DISMISSED
+  ESCALATED
+}
+
+enum OpsAlertSeverity {
+  WARN
+  CRITICAL
+}
+
+enum CustomTagRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -42,6 +70,8 @@ model User {
   passwordHash     String
   role             UserRole
   isVerified       Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  deactivatedAt    DateTime?
   failedLoginAttempts Int   @default(0)
   lockoutUntil     DateTime?
   authTokenVersion Int      @default(0)
@@ -58,10 +88,20 @@ model User {
   cv               Cv?
   sentContactRequests     ContactRequest[] @relation("EmployerContactRequests")
   receivedContactRequests ContactRequest[] @relation("CandidateContactRequests")
+  mutedCompanies          MutedCompany[]   @relation("CandidateMutedCompanies")
+  mutedByCandidates       MutedCompany[]   @relation("EmployerMutedByCandidates")
   savedSearches    SavedSearch[]
   shortlistEntries        ShortlistEntry[] @relation("EmployerShortlistEntries")
   shortlistedBy           ShortlistEntry[] @relation("CandidateShortlistEntries")
+  shortlistFolders        ShortlistFolder[]
   notifications           Notification[]
+  requestedCustomTags     CustomTagRequest[] @relation("RequesterCustomTagRequests")
+  reviewedCustomTags      CustomTagRequest[] @relation("ReviewerCustomTagRequests")
+  adminActions            AdminActionLog[] @relation("AdminActorActions")
+  targetedAdminActions    AdminActionLog[] @relation("AdminTargetActions")
+  moderationCases         CvModerationCase[] @relation("CandidateModerationCases")
+  flaggedModerationCases  CvModerationCase[] @relation("AdminFlaggedModerationCases")
+  cvReviews               CvReview[]
 }
 
 model JobSeekerProfile {
@@ -108,6 +148,8 @@ model Cv {
 
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags       CVTag[]
+  moderationCases CvModerationCase[]
+  reviews    CvReview[]
 }
 
 model Tag {
@@ -116,6 +158,7 @@ model Tag {
 
   cvs   CVTag[]
   savedSearches SavedSearch[]
+  customTagRequests CustomTagRequest[]
 }
 
 model CVTag {
@@ -144,6 +187,19 @@ model ContactRequest {
   @@index([employerId, status])
 }
 
+model MutedCompany {
+  candidateId String
+  employerId  String
+  createdAt   DateTime @default(now())
+
+  candidate   User @relation("CandidateMutedCompanies", fields: [candidateId], references: [id], onDelete: Cascade)
+  employer    User @relation("EmployerMutedByCandidates", fields: [employerId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, employerId])
+  @@index([candidateId, createdAt])
+  @@index([employerId, createdAt])
+}
+
 model SavedSearch {
   id         String   @id @default(uuid())
   employerId String
@@ -170,9 +226,34 @@ model ShortlistEntry {
 
   employer    User     @relation("EmployerShortlistEntries", fields: [employerId], references: [id], onDelete: Cascade)
   candidate   User     @relation("CandidateShortlistEntries", fields: [candidateId], references: [id], onDelete: Cascade)
+  folderLinks ShortlistFolderEntry[]
 
   @@unique([employerId, candidateId])
   @@index([employerId, createdAt])
+}
+
+model ShortlistFolder {
+  id         String   @id @default(uuid())
+  employerId String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employer   User     @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  entries    ShortlistFolderEntry[]
+
+  @@index([employerId, updatedAt])
+}
+
+model ShortlistFolderEntry {
+  folderId        String
+  shortlistEntryId String
+
+  folder          ShortlistFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  shortlistEntry  ShortlistEntry  @relation(fields: [shortlistEntryId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, shortlistEntryId])
+  @@index([shortlistEntryId])
 }
 
 model Notification {
@@ -189,4 +270,112 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt, createdAt])
+}
+
+model CustomTagRequest {
+  id           String                 @id @default(uuid())
+  requesterId  String
+  requestedName String
+  status       CustomTagRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  tagId        String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  requester    User                   @relation("RequesterCustomTagRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  reviewedBy   User?                  @relation("ReviewerCustomTagRequests", fields: [reviewedById], references: [id], onDelete: SetNull)
+  tag          Tag?                   @relation(fields: [tagId], references: [id], onDelete: SetNull)
+
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CvModerationCase {
+  id                  String             @id @default(uuid())
+  candidateId         String
+  cvId                String
+  flaggedByAdminId    String
+  reason              String?
+  previousVisibility  CVVisibility?
+  status              CvModerationStatus @default(AWAITING_CONSENT)
+  consentDeadlineAt   DateTime
+  candidateRespondedAt DateTime?
+  previewGrantedAt    DateTime?
+  previewExpiresAt    DateTime?
+  resolvedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  candidate           User               @relation("CandidateModerationCases", fields: [candidateId], references: [id], onDelete: Cascade)
+  cv                  Cv                 @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  flaggedByAdmin      User               @relation("AdminFlaggedModerationCases", fields: [flaggedByAdminId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, createdAt])
+  @@index([flaggedByAdminId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CvReview {
+  id                 String   @id @default(uuid())
+  userId             String
+  cvId               String
+  provider           String
+  strengthsJson      String
+  improvementsJson   String
+  suggestionsJson    String
+  keywordMatchesJson String?
+  structureScore     Int
+  clarityScore       Int
+  keywordScore       Int
+  completenessScore  Int
+  sourceCvUpdatedAt  DateTime
+  createdAt          DateTime @default(now())
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cv                 Cv       @relation(fields: [cvId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([cvId, createdAt])
+}
+
+model OpsAlert {
+  id          String           @id @default(uuid())
+  metricKey   String
+  route       String
+  message     String
+  severity    OpsAlertSeverity
+  thresholdMs Int
+  observedMs  Int
+  createdAt   DateTime         @default(now())
+  resolvedAt  DateTime?
+
+  @@index([metricKey, createdAt])
+  @@index([severity, createdAt])
+}
+
+model AdminActionLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  targetUserId String
+  action       String
+  createdAt    DateTime @default(now())
+
+  admin        User     @relation("AdminActorActions", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser   User     @relation("AdminTargetActions", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
+model AccountDeletionAudit {
+  id           String   @id @default(uuid())
+  receiptCode  String   @unique
+  deletedEmail String
+  deletedRole  UserRole
+  hadCv        Boolean  @default(false)
+  requestedAt  DateTime
+  completedAt  DateTime @default(now())
+
+  @@index([completedAt])
 }

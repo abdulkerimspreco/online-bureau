@@ -22,6 +22,13 @@ import JobSeekerContactHistoryPage from './pages/JobSeekerContactHistoryPage';
 import EmployerContactHistoryPage from './pages/EmployerContactHistoryPage';
 import EmployerShortlistPage from './pages/EmployerShortlistPage';
 import NotificationsPage from './pages/NotificationsPage';
+import JobSeekerPrivacyPage from './pages/JobSeekerPrivacyPage';
+import AdminTagsPage from './pages/AdminTagsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
+import JobSeekerCvModerationPage from './pages/JobSeekerCvModerationPage';
+import AdminCvModerationPage from './pages/AdminCvModerationPage';
+import AdminOpsPage from './pages/AdminOpsPage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -40,6 +47,10 @@ function HomeRedirect() {
 
   if (user?.role === "EMPLOYER") {
     return <Navigate to="/employer/dashboard" replace />;
+  }
+
+  if (user?.role === "ADMIN") {
+    return <Navigate to="/admin/users" replace />;
   }
 
   return <div style={{ padding: "2rem" }}>Unknown role</div>;
@@ -69,12 +80,20 @@ export default function App() {
           element={<JobSeekerProfilePage />}
         />
         <Route
+          path="/job-seeker/privacy"
+          element={<JobSeekerPrivacyPage />}
+        />
+        <Route
           path="/job-seeker/requests"
           element={<JobSeekerContactHistoryPage />}
         />
         <Route
           path="/job-seeker/notifications"
           element={<NotificationsPage />}
+        />
+        <Route
+          path="/job-seeker/cv-moderation"
+          element={<JobSeekerCvModerationPage />}
         />
         <Route path="/job-seeker/cv" element={<CvPage />} />
         <Route path="/job-seeker/tags" element={<TagsPage />} />
@@ -97,6 +116,14 @@ export default function App() {
           path="/employer/candidates/:candidateId"
           element={<EmployerCandidateProfilePage />}
         />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+        <Route path="/admin/ops" element={<AdminOpsPage />} />
+        <Route path="/admin/cv-moderation" element={<AdminCvModerationPage />} />
+        <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>
     </Routes>
   );

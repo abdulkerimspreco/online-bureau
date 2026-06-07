@@ -9,27 +9,45 @@ import {
   uploadCv,
 } from "../api/cv/cv.api";
 import type { CV } from "../api/cv/cv.types";
+import {
+  createCvReview,
+  getLatestCvReview,
+} from "../api/cv-review/cv-review.api";
+import type { CvReviewResult } from "../api/cv-review/cv-review.types";
 import { formatBytes, formatDate } from "../utils/functionUtils";
 
 export default function CvPage() {
   const [cv, setCv] = useState<CV | null>(null);
+  const [review, setReview] = useState<CvReviewResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  async function loadCv() {
+  async function loadCvState() {
     setError("");
 
     try {
-      const data = await getMyCv();
+      const [data, latestReview] = await Promise.all([
+        getMyCv(),
+        getLatestCvReview().catch((err: any) => {
+          if (err?.response?.status === 404) {
+            return null;
+          }
+
+          throw err;
+        }),
+      ]);
       setCv(data);
+      setReview(latestReview);
     } catch (err: any) {
       if (err?.response?.status === 404) {
         setCv(null);
+        setReview(null);
       } else {
         setError(err?.response?.data?.message || "Failed to load CV");
       }
@@ -39,7 +57,7 @@ export default function CvPage() {
   }
 
   useEffect(() => {
-    loadCv();
+    loadCvState();
   }, []);
 
   const isVisible = useMemo(() => cv?.visibility === "PUBLIC", [cv]);
@@ -59,6 +77,7 @@ export default function CvPage() {
     try {
       const uploadedCv = await uploadCv(selectedFile);
       setCv(uploadedCv);
+      setReview(null);
       setSelectedFile(null);
       setSuccess(
         cv ? "CV replaced successfully." : "CV uploaded successfully.",
@@ -106,6 +125,7 @@ export default function CvPage() {
     try {
       await deleteMyCv();
       setCv(null);
+      setReview(null);
       setSelectedFile(null);
       setSuccess("CV deleted successfully.");
     } catch (err: any) {
@@ -115,13 +135,34 @@ export default function CvPage() {
     }
   }
 
+  async function handleAiReview() {
+    if (!cv) return;
+
+    setError("");
+    setSuccess("");
+    setIsReviewing(true);
+
+    try {
+      const result = await createCvReview();
+      setReview(result);
+      setSuccess(
+        "AI review completed. We saved only the structured feedback for this run.",
+      );
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to review CV");
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
   return (
     <DashboardLayout
       title="My CV"
       subtitle="Upload, replace, delete, and control the visibility of your CV."
     >
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card>
+      <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <Card>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-slate-500">
@@ -254,9 +295,9 @@ export default function CvPage() {
               </div>
             )}
           </div>
-        </Card>
+          </Card>
 
-        <Card>
+          <Card>
           <p className="text-sm font-medium text-slate-500">
             {cv ? "Replace your CV" : "Upload your CV"}
           </p>
@@ -313,8 +354,155 @@ export default function CvPage() {
               </li>
             </ul>
           </div>
+          </Card>
+        </div>
+
+        <Card>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">AI CV review</p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                Optional feedback on structure, clarity, keywords, and completeness
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Reviews run only when you request them. This app stores only the
+                final feedback, not the raw CV text. OpenAI response storage is
+                disabled for the request, and slow provider calls are canceled
+                automatically so the page does not hang forever.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              fullWidth={false}
+              disabled={!cv || isReviewing}
+              onClick={handleAiReview}
+            >
+              {isReviewing
+                ? "Reviewing..."
+                : review
+                  ? "Review again"
+                  : "Run AI review"}
+            </Button>
+          </div>
+
+          {!cv ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
+              Upload a CV before requesting a review.
+            </div>
+          ) : review ? (
+            <div className="mt-6 space-y-6">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <ScoreCard label="Structure" score={review.structureScore} />
+                <ScoreCard label="Clarity" score={review.clarityScore} />
+                <ScoreCard label="Keywords" score={review.keywordScore} />
+                <ScoreCard label="Completeness" score={review.completenessScore} />
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                <p>
+                  Reviewed {formatDate(review.createdAt)} against the CV version last
+                  updated on {formatDate(review.sourceCvUpdatedAt)}.
+                </p>
+                <p className="mt-2">
+                  Review mode: <span className="font-medium text-slate-800">opt-in</span>.
+                  App raw-text storage:{" "}
+                  <span className="font-medium text-slate-800">
+                    {review.appStoresRawCvText ? "enabled" : "disabled"}
+                  </span>
+                  . Provider response storage:{" "}
+                  <span className="font-medium text-slate-800">
+                    {review.providerResponseStorage}
+                  </span>
+                  . Timeout safeguard:{" "}
+                  <span className="font-medium text-slate-800">
+                    {Math.round(review.requestTimeoutMs / 1000)}s
+                  </span>
+                  .
+                </p>
+                {!review.isCurrentVersion ? (
+                  <p className="mt-2 text-amber-700">
+                    This feedback is for an older CV version. Uploading a revised CV
+                    clears the previous result so you can run a fresh review.
+                  </p>
+                ) : null}
+                {review.keywordMatches.length > 0 ? (
+                  <p className="mt-2">
+                    Keyword matches spotted:{" "}
+                    <span className="font-medium text-slate-800">
+                      {review.keywordMatches.join(", ")}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-3">
+                <ReviewList
+                  title="Strengths"
+                  items={review.strengths}
+                  tone="emerald"
+                />
+                <ReviewList
+                  title="Areas for Improvement"
+                  items={review.improvements}
+                  tone="amber"
+                />
+                <ReviewList
+                  title="Suggestions"
+                  items={review.suggestions}
+                  tone="slate"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
+              No review has been generated for this CV yet.
+            </div>
+          )}
         </Card>
       </div>
     </DashboardLayout>
+  );
+}
+
+function ScoreCard({ label, score }: { label: string; score: number }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-semibold text-slate-900">{score}/5</p>
+    </div>
+  );
+}
+
+function ReviewList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: "emerald" | "amber" | "slate";
+}) {
+  const toneClasses =
+    tone === "emerald"
+      ? "border-emerald-200 bg-emerald-50"
+      : tone === "amber"
+        ? "border-amber-200 bg-amber-50"
+        : "border-slate-200 bg-slate-50";
+
+  return (
+    <div className={`rounded-2xl border p-4 ${toneClasses}`}>
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-500" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

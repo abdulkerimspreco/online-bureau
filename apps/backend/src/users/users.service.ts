@@ -200,4 +200,33 @@ export class UsersService {
       },
     });
   }
+
+  findAccountForDeletion(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        cv: true,
+        jobSeekerProfile: true,
+        employerProfile: true,
+      },
+    });
+  }
+
+  deleteUserAccount(userId: string) {
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
+
+  createAccountDeletionAudit(params: {
+    receiptCode: string;
+    deletedEmail: string;
+    deletedRole: UserRole;
+    hadCv: boolean;
+    requestedAt: Date;
+  }) {
+    return this.prisma.accountDeletionAudit.create({
+      data: params,
+    });
+  }
 }

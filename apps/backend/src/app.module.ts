@@ -14,6 +14,12 @@ import { ContactRequestsModule } from './contact-requests/contact-requests.modul
 import { SavedSearchesModule } from './saved-searches/saved-searches.module';
 import { ShortlistModule } from './shortlist/shortlist.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { MutedCompaniesModule } from './muted-companies/muted-companies.module';
+import { AdminUsersModule } from './admin-users/admin-users.module';
+import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
+import { AdminCvModerationModule } from './admin-cv-moderation/admin-cv-moderation.module';
+import { CvReviewModule } from './cv-review/cv-review.module';
+import { OpsMonitoringModule } from './ops-monitoring/ops-monitoring.module';
 
 @Module({
   imports: [
@@ -33,6 +39,12 @@ import { NotificationsModule } from './notifications/notifications.module';
     SavedSearchesModule,
     ShortlistModule,
     NotificationsModule,
+    MutedCompaniesModule,
+    AdminUsersModule,
+    AdminAnalyticsModule,
+    AdminCvModerationModule,
+    CvReviewModule,
+    OpsMonitoringModule,
   ],
 })
 export class AppModule { }

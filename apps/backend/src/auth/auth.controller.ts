@@ -17,6 +17,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 interface AuthenticatedRequest extends Request {
     user: {
@@ -24,6 +25,7 @@ interface AuthenticatedRequest extends Request {
         email: string;
         role: string;
         isVerified: boolean;
+        isActive: boolean;
     };
 }
 
@@ -110,5 +112,17 @@ export class AuthController {
     logout(@Res({ passthrough: true }) res: Response) {
         res.clearCookie('accessToken');
         return { message: 'Logged out successfully' };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @RequestMapping({ path: 'delete-account', method: RequestMethod.POST })
+    async deleteAccount(
+        @Req() req: AuthenticatedRequest,
+        @Body() dto: DeleteAccountDto,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const result = await this.authService.deleteAccount(req.user.id, dto);
+        res.clearCookie('accessToken');
+        return result;
     }
 }

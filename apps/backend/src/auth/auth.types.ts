@@ -3,6 +3,7 @@ export interface AuthResponseUser {
   email: string;
   role: string;
   isVerified: boolean;
+  isActive: boolean;
   createdAt: Date;
 }
 
@@ -25,4 +26,11 @@ export interface ResetPasswordResponse {
 export interface VerificationLinkResponse {
   message: string;
   verificationPreviewUrl: string;
+}
+
+export interface DeleteAccountResponse {
+  message: string;
+  receiptCode: string;
+  completedAt: string;
+  summary: string;
 }
