@@ -7,15 +7,19 @@ export interface AuthResponseUser {
   createdAt: Date;
 }
 
+export type DeliveryMethod = 'EMAIL' | 'PREVIEW';
+
 export interface VerificationRegistrationResponse {
   message: string;
   user: AuthResponseUser;
   requiresVerification: boolean;
-  verificationPreviewUrl: string;
+  deliveryMethod: DeliveryMethod;
+  verificationPreviewUrl?: string;
 }
 
 export interface ForgotPasswordResponse {
   message: string;
+  deliveryMethod: DeliveryMethod;
   resetPreviewUrl?: string;
 }
 
@@ -25,7 +29,8 @@ export interface ResetPasswordResponse {
 
 export interface VerificationLinkResponse {
   message: string;
-  verificationPreviewUrl: string;
+  deliveryMethod: DeliveryMethod;
+  verificationPreviewUrl?: string;
 }
 
 export interface DeleteAccountResponse {

@@ -4,6 +4,7 @@ import { UserRole, type User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
 
 jest.mock('bcrypt', () => ({
@@ -43,6 +44,7 @@ describe('AuthService', () => {
   let usersService: Mocked<UsersService>;
   let jwtService: Mocked<JwtService>;
   let configService: Mocked<ConfigService>;
+  let mailService: Mocked<MailService>;
 
   beforeEach(() => {
     usersService = {
@@ -72,10 +74,17 @@ describe('AuthService', () => {
       get: jest.fn().mockReturnValue('http://localhost:5173'),
     } as unknown as Mocked<ConfigService>;
 
+    mailService = {
+      isConfigured: jest.fn().mockReturnValue(false),
+      sendVerificationEmail: jest.fn().mockResolvedValue(false),
+      sendPasswordResetEmail: jest.fn().mockResolvedValue(false),
+    } as unknown as Mocked<MailService>;
+
     service = new AuthService(
       usersService as unknown as UsersService,
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
+      mailService as unknown as MailService,
     );
   });
 
@@ -83,7 +92,7 @@ describe('AuthService', () => {
     jest.clearAllMocks();
   });
 
-  it('registers a job seeker and returns verification metadata', async () => {
+  it('registers a job seeker and returns preview verification metadata when SMTP is unavailable', async () => {
     const user = createUser({ isVerified: false });
 
     usersService.findByEmail.mockResolvedValue(null);
@@ -111,7 +120,33 @@ describe('AuthService', () => {
       }),
     );
     expect(result.requiresVerification).toBe(true);
+    expect(result.deliveryMethod).toBe('PREVIEW');
     expect(result.verificationPreviewUrl).toContain('/verify-email?token=');
+  });
+
+  it('registers a job seeker and sends a real verification email when SMTP is configured', async () => {
+    const user = createUser({ isVerified: false });
+
+    usersService.findByEmail.mockResolvedValue(null);
+    (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
+    usersService.createJobSeeker.mockResolvedValue(user);
+    mailService.sendVerificationEmail.mockResolvedValue(true);
+
+    const result = await service.registerJobSeeker({
+      email: 'new@example.com',
+      password: 'Password1!',
+      displayName: 'Abdul',
+      location: 'Sarajevo',
+      preferredJobCategories: 'Backend, Fullstack',
+      acceptedTermsAndPrivacy: true,
+    });
+
+    expect(mailService.sendVerificationEmail).toHaveBeenCalledWith(
+      user.email,
+      expect.stringContaining('/verify-email?token='),
+    );
+    expect(result.deliveryMethod).toBe('EMAIL');
+    expect(result.verificationPreviewUrl).toBeUndefined();
   });
 
   it('rejects registration when email is already taken', async () => {
@@ -208,12 +243,13 @@ describe('AuthService', () => {
 
     expect(result).toEqual({
       message:
-        'If an account with that email exists, a password reset link has been generated.',
+        'If an account with that email exists, password reset instructions have been prepared.',
+      deliveryMethod: 'PREVIEW',
     });
     expect(usersService.setPasswordResetToken).not.toHaveBeenCalled();
   });
 
-  it('stores a password reset token and returns a preview url for known users', async () => {
+  it('stores a password reset token and returns a preview url for known users when SMTP is unavailable', async () => {
     const user = createUser();
     usersService.findByEmail.mockResolvedValue(user);
 
@@ -224,7 +260,24 @@ describe('AuthService', () => {
       expect.any(String),
       expect.any(Date),
     );
+    expect(result.deliveryMethod).toBe('PREVIEW');
     expect(result.resetPreviewUrl).toContain('/reset-password?token=');
+  });
+
+  it('stores a password reset token and sends a real reset email when SMTP is configured', async () => {
+    const user = createUser();
+    usersService.findByEmail.mockResolvedValue(user);
+    mailService.isConfigured.mockReturnValue(true);
+    mailService.sendPasswordResetEmail.mockResolvedValue(true);
+
+    const result = await service.requestPasswordReset({ email: user.email });
+
+    expect(mailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+      user.email,
+      expect.stringContaining('/reset-password?token='),
+    );
+    expect(result.deliveryMethod).toBe('EMAIL');
+    expect(result.resetPreviewUrl).toBeUndefined();
   });
 
   it('clears expired password reset tokens', async () => {
