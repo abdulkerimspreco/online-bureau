@@ -47,6 +47,7 @@ export default function RegisterJobSeekerPage() {
       navigate("/verify-email-sent", {
         state: {
           email: form.email,
+          deliveryMethod: response.deliveryMethod,
           verificationPreviewUrl: response.verificationPreviewUrl,
           role: "JOB_SEEKER",
         },

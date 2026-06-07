@@ -7,6 +7,8 @@ export interface AuthUser {
   createdAt: string;
 }
 
+export type DeliveryMethod = 'EMAIL' | 'PREVIEW';
+
 export interface AuthResponse {
   message: string;
   user: AuthUser;
@@ -20,7 +22,8 @@ export interface RegistrationResponse {
 
 export interface VerificationRegistrationResponse extends RegistrationResponse {
   requiresVerification: boolean;
-  verificationPreviewUrl: string;
+  deliveryMethod: DeliveryMethod;
+  verificationPreviewUrl?: string;
 }
 
 export interface VerifyEmailPayload {
@@ -37,6 +40,7 @@ export interface ForgotPasswordPayload {
 
 export interface ForgotPasswordResponse {
   message: string;
+  deliveryMethod: DeliveryMethod;
   resetPreviewUrl?: string;
 }
 
@@ -51,7 +55,8 @@ export interface ResetPasswordResponse {
 
 export interface VerificationLinkResponse {
   message: string;
-  verificationPreviewUrl: string;
+  deliveryMethod: DeliveryMethod;
+  verificationPreviewUrl?: string;
 }
 
 export interface DeleteAccountPayload {
