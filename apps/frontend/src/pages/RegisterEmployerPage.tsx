@@ -39,6 +39,7 @@ export default function RegisterEmployerPage() {
       navigate("/verify-email-sent", {
         state: {
           email: form.email,
+          deliveryMethod: response.deliveryMethod,
           verificationPreviewUrl: response.verificationPreviewUrl,
           role: "EMPLOYER",
         },

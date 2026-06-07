@@ -45,28 +45,14 @@ export class AuthController {
     async registerJobSeeker(
         @Body() dto: RegisterJobSeekerDto,
     ) {
-        const result = await this.authService.registerJobSeeker(dto);
-
-        return {
-            message: result.message,
-            user: result.user,
-            requiresVerification: result.requiresVerification,
-            verificationPreviewUrl: result.verificationPreviewUrl,
-        };
+        return this.authService.registerJobSeeker(dto);
     }
 
     @RequestMapping({ path: 'register/employer', method: RequestMethod.POST })
     async registerEmployer(
         @Body() dto: RegisterEmployerDto,
     ) {
-        const result = await this.authService.registerEmployer(dto);
-
-        return {
-            message: result.message,
-            user: result.user,
-            requiresVerification: result.requiresVerification,
-            verificationPreviewUrl: result.verificationPreviewUrl,
-        };
+        return this.authService.registerEmployer(dto);
     }
 
     @RequestMapping({ path: 'login', method: RequestMethod.POST })

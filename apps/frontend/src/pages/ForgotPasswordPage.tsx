@@ -4,12 +4,14 @@ import AuthLayout from '../components/layout/AuthLayout';
 import Button from '../components/ui/Button';
 import TextInput from '../components/ui/TextInput';
 import { requestPasswordReset } from '../api/auth/auth.api';
+import type { DeliveryMethod } from '../api/auth/auth.types';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [resetPreviewUrl, setResetPreviewUrl] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -17,11 +19,13 @@ export default function ForgotPasswordPage() {
     setError('');
     setMessage('');
     setResetPreviewUrl('');
+    setDeliveryMethod(null);
     setIsSubmitting(true);
 
     try {
       const response = await requestPasswordReset({ email });
       setMessage(response.message);
+      setDeliveryMethod(response.deliveryMethod);
       setResetPreviewUrl(response.resetPreviewUrl ?? '');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Unable to request a password reset.');
@@ -62,12 +66,12 @@ export default function ForgotPasswordPage() {
           </Button>
         </form>
 
-        {resetPreviewUrl ? (
+        {deliveryMethod === 'PREVIEW' && resetPreviewUrl ? (
           <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-            <p className="font-medium text-sky-900">Development preview link</p>
+            <p className="font-medium text-sky-900">Reset link preview</p>
             <p className="mt-2 text-sky-800">
-              This milestone build shows the generated reset link directly
-              instead of sending a real email.
+              Email delivery is not configured in this environment, so the
+              reset link is shown directly for testing.
             </p>
             <a
               href={resetPreviewUrl}
@@ -75,6 +79,13 @@ export default function ForgotPasswordPage() {
             >
               Open reset link
             </a>
+          </div>
+        ) : null}
+
+        {message && deliveryMethod === 'EMAIL' ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-slate-700">
+            If the address exists in our system, the password reset email
+            should arrive shortly. Please check your inbox and spam folder.
           </div>
         ) : null}
 

@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout';
+import type { DeliveryMethod } from '../api/auth/auth.types';
 
 interface VerifyEmailSentState {
   email?: string;
+  deliveryMethod?: DeliveryMethod;
   verificationPreviewUrl?: string;
   role?: 'JOB_SEEKER' | 'EMPLOYER';
 }
@@ -11,6 +13,7 @@ export default function VerifyEmailSentPage() {
   const location = useLocation();
   const state = (location.state as VerifyEmailSentState | null) ?? null;
   const isEmployer = state?.role === 'EMPLOYER';
+  const usingPreviewLink = state?.deliveryMethod === 'PREVIEW' && Boolean(state?.verificationPreviewUrl);
 
   return (
     <AuthLayout
@@ -25,7 +28,7 @@ export default function VerifyEmailSentPage() {
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
           <p className="font-medium text-slate-900">Verification pending</p>
           <p className="mt-2">
-            We generated a verification link for{' '}
+            {usingPreviewLink ? 'We prepared a verification link for ' : 'We sent a verification email to '}
             <span className="font-medium text-slate-900">
               {state?.email ?? 'your new account'}
             </span>
@@ -36,24 +39,25 @@ export default function VerifyEmailSentPage() {
           </p>
         </div>
 
-        {state?.verificationPreviewUrl ? (
+        {usingPreviewLink ? (
           <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-            <p className="font-medium text-sky-900">Development preview link</p>
+            <p className="font-medium text-sky-900">Verification preview link</p>
             <p className="mt-2 text-sky-800">
-              This milestone build exposes the verification link directly instead
-              of sending a real email.
+              Email delivery is not configured in this environment, so the
+              verification link is shown directly for testing.
             </p>
             <a
-              href={state.verificationPreviewUrl}
+              href={state?.verificationPreviewUrl}
               className="mt-3 inline-flex text-sm font-medium text-slate-900 underline underline-offset-4"
             >
               Open verification link
             </a>
           </div>
         ) : (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-900">
-            The verification preview link is only shown immediately after
-            registration in this milestone build.
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900">
+            Check your inbox and spam folder for the verification email. Once
+            you confirm your address, you can continue with the normal login
+            flow.
           </div>
         )}
 

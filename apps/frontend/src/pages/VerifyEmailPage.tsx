@@ -3,6 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout';
 import { verifyEmail } from '../api/auth/auth.api';
 
+const verificationRequests = new Map<string, Promise<string>>();
+const verificationResults = new Map<string, string>();
+
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
@@ -22,15 +25,36 @@ export default function VerifyEmailPage() {
     const verificationToken = token;
 
     async function runVerification() {
-      try {
-        const response = await verifyEmail({ token: verificationToken });
+      const cachedSuccessMessage = verificationResults.get(verificationToken);
+
+      if (cachedSuccessMessage) {
         setStatus('success');
-        setMessage(response.message);
+        setMessage(cachedSuccessMessage);
+        return;
+      }
+
+      try {
+        let request = verificationRequests.get(verificationToken);
+
+        if (!request) {
+          request = verifyEmail({ token: verificationToken }).then(
+            (response) => response.message,
+          );
+          verificationRequests.set(verificationToken, request);
+        }
+
+        const successMessage = await request;
+        verificationResults.set(verificationToken, successMessage);
+        setStatus('success');
+        setMessage(successMessage);
       } catch (err: any) {
+        verificationRequests.delete(verificationToken);
         setStatus('error');
         setMessage(
           err?.response?.data?.message || 'Failed to verify your email.',
         );
+      } finally {
+        verificationRequests.delete(verificationToken);
       }
     }
 

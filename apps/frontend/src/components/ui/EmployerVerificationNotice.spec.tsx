@@ -44,6 +44,7 @@ describe('EmployerVerificationNotice', () => {
     const user = userEvent.setup();
     mockedRequestVerificationLink.mockResolvedValue({
       message: 'Verification link generated successfully.',
+      deliveryMethod: 'PREVIEW',
       verificationPreviewUrl: 'http://localhost:5173/verify-email?token=abc',
     });
 
@@ -83,5 +84,20 @@ describe('EmployerVerificationNotice', () => {
     await waitFor(() => {
       expect(refreshMe).toHaveBeenCalled();
     });
+  });
+
+  it('shows a success message when the backend sends a real email', async () => {
+    const user = userEvent.setup();
+    mockedRequestVerificationLink.mockResolvedValue({
+      message: 'Verification email sent successfully.',
+      deliveryMethod: 'EMAIL',
+    });
+
+    render(<EmployerVerificationNotice />);
+    await user.click(screen.getByRole('button', { name: 'Verify now' }));
+
+    expect(
+      screen.getByText('Verification email sent successfully.'),
+    ).toBeInTheDocument();
   });
 });

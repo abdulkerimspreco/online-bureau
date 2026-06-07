@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-// change this to env variable
-const API_BASE_PORT = 3000;
-const API_BASE_URL = `http://localhost:${API_BASE_PORT}`;
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL?.trim() || 'http://localhost:3000';
 
 export const API = axios.create({
     baseURL: API_BASE_URL,
@@ -25,3 +24,4 @@ API.interceptors.response.use(
   (error) => Promise.reject(error),
 );
 
+export const getApiBaseUrl = () => API_BASE_URL;

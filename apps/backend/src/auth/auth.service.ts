@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
+import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
 import { RegisterJobSeekerDto } from './dto/register-job-seeker.dto';
 import { RegisterEmployerDto } from './dto/register-employer.dto';
@@ -22,6 +23,7 @@ import {
     VerificationLinkResponse,
     VerificationRegistrationResponse,
     DeleteAccountResponse,
+    DeliveryMethod,
 } from './auth.types';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -36,6 +38,7 @@ export class AuthService {
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        private readonly mailService: MailService,
     ) { }
 
     private async hashPassword(password: string): Promise<string> {
@@ -66,18 +69,60 @@ export class AuthService {
         return `DEL-${randomBytes(4).toString('hex').toUpperCase()}`;
     }
 
-    private buildVerificationPreviewUrl(token: string): string {
+    private buildVerificationUrl(token: string): string {
         const frontendUrl =
             this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
 
         return `${frontendUrl}/verify-email?token=${token}`;
     }
 
-    private buildPasswordResetPreviewUrl(token: string): string {
+    private buildPasswordResetUrl(token: string): string {
         const frontendUrl =
             this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
 
         return `${frontendUrl}/reset-password?token=${token}`;
+    }
+
+    private async prepareVerificationDelivery(email: string, token: string): Promise<{
+        deliveryMethod: DeliveryMethod;
+        verificationPreviewUrl?: string;
+    }> {
+        const verificationUrl = this.buildVerificationUrl(token);
+
+        if (await this.mailService.sendVerificationEmail(email, verificationUrl)) {
+            return {
+                deliveryMethod: 'EMAIL',
+            };
+        }
+
+        console.log(
+            `Verification email preview for ${email}: ${verificationUrl}`,
+        );
+
+        return {
+            deliveryMethod: 'PREVIEW',
+            verificationPreviewUrl: verificationUrl,
+        };
+    }
+
+    private async preparePasswordResetDelivery(email: string, token: string): Promise<{
+        deliveryMethod: DeliveryMethod;
+        resetPreviewUrl?: string;
+    }> {
+        const resetUrl = this.buildPasswordResetUrl(token);
+
+        if (await this.mailService.sendPasswordResetEmail(email, resetUrl)) {
+            return {
+                deliveryMethod: 'EMAIL',
+            };
+        }
+
+        console.log(`Password reset email preview for ${email}: ${resetUrl}`);
+
+        return {
+            deliveryMethod: 'PREVIEW',
+            resetPreviewUrl: resetUrl,
+        };
     }
 
     private buildLockoutMessage(lockoutUntil: Date): string {
@@ -127,11 +172,9 @@ export class AuthService {
             verificationToken,
             verificationTokenExpiresAt,
         });
-        const verificationPreviewUrl =
-            this.buildVerificationPreviewUrl(verificationToken);
-
-        console.log(
-            `Job seeker verification email preview for ${user.email}: ${verificationPreviewUrl}`,
+        const delivery = await this.prepareVerificationDelivery(
+            user.email,
+            verificationToken,
         );
 
         return {
@@ -139,7 +182,7 @@ export class AuthService {
                 'Job seeker registered successfully. Please verify your email before logging in.',
             user: toAuthResponseUser(user),
             requiresVerification: true,
-            verificationPreviewUrl,
+            ...delivery,
         };
     }
 
@@ -167,11 +210,9 @@ export class AuthService {
             verificationToken,
             verificationTokenExpiresAt,
         });
-        const verificationPreviewUrl =
-            this.buildVerificationPreviewUrl(verificationToken);
-
-        console.log(
-            `Employer verification email preview for ${user.email}: ${verificationPreviewUrl}`,
+        const delivery = await this.prepareVerificationDelivery(
+            user.email,
+            verificationToken,
         );
 
         return {
@@ -179,7 +220,7 @@ export class AuthService {
                 'Employer registered successfully. Please verify your email to unlock employer features.',
             user: toAuthResponseUser(user),
             requiresVerification: true,
-            verificationPreviewUrl,
+            ...delivery,
         };
     }
 
@@ -306,16 +347,17 @@ export class AuthService {
             verificationTokenExpiresAt,
         );
 
-        const verificationPreviewUrl =
-            this.buildVerificationPreviewUrl(verificationToken);
-
-        console.log(
-            `Verification email preview regenerated for ${user.email}: ${verificationPreviewUrl}`,
+        const delivery = await this.prepareVerificationDelivery(
+            user.email,
+            verificationToken,
         );
 
         return {
-            message: 'Verification link generated successfully.',
-            verificationPreviewUrl,
+            message:
+                delivery.deliveryMethod === 'EMAIL'
+                    ? 'Verification email sent successfully.'
+                    : 'Verification link generated successfully.',
+            ...delivery,
         };
     }
 
@@ -325,7 +367,8 @@ export class AuthService {
         const user = await this.usersService.findByEmail(dto.email);
         const genericResponse: ForgotPasswordResponse = {
             message:
-                'If an account with that email exists, a password reset link has been generated.',
+                'If an account with that email exists, password reset instructions have been prepared.',
+            deliveryMethod: this.mailService.isConfigured() ? 'EMAIL' : 'PREVIEW',
         };
 
         if (!user) {
@@ -343,16 +386,14 @@ export class AuthService {
             passwordResetTokenExpiresAt,
         );
 
-        const resetPreviewUrl =
-            this.buildPasswordResetPreviewUrl(passwordResetToken);
-
-        console.log(
-            `Password reset email preview for ${user.email}: ${resetPreviewUrl}`,
+        const delivery = await this.preparePasswordResetDelivery(
+            user.email,
+            passwordResetToken,
         );
 
         return {
             ...genericResponse,
-            resetPreviewUrl,
+            ...delivery,
         };
     }
 

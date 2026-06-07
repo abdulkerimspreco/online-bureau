@@ -6,14 +6,21 @@ export default function EmployerVerificationNotice() {
   const { refreshMe } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   async function handleVerifyNow() {
     setError('');
+    setMessage('');
     setIsGenerating(true);
 
     try {
       const response = await requestVerificationLink();
-      window.location.href = response.verificationPreviewUrl;
+      if (response.verificationPreviewUrl) {
+        window.location.href = response.verificationPreviewUrl;
+        return;
+      }
+
+      setMessage(response.message);
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Unable to generate a verification link.';
       setError(message);
@@ -34,13 +41,16 @@ export default function EmployerVerificationNotice() {
             Employer account not verified
           </p>
           <p className="mt-1 text-sm leading-6 text-amber-800">
-            Your company account is currently marked as unverified. Keep your
-            company profile complete so the verification flow can be added cleanly
-            in the next release.
+            Your company account is currently marked as unverified. We can resend
+            the verification email whenever you are ready.
           </p>
 
           {error ? (
             <p className="mt-2 text-sm text-red-700">{error}</p>
+          ) : null}
+
+          {message ? (
+            <p className="mt-2 text-sm text-emerald-800">{message}</p>
           ) : null}
         </div>
 
