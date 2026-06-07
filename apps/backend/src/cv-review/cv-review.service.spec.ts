@@ -1,8 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CvService } from '../cv/cv.service';
 import { CvReviewService } from './cv-review.service';
+import { CvReviewProvider } from './cv-review.types';
 
 type MockedPrisma = {
   cv: {
@@ -18,7 +18,7 @@ describe('CvReviewService', () => {
   let service: CvReviewService;
   let prisma: MockedPrisma;
   let cvService: { getCvFileForUser: jest.Mock };
-  let configService: { get: jest.Mock };
+  let cvReviewProvider: jest.Mocked<CvReviewProvider>;
 
   beforeEach(() => {
     prisma = {
@@ -35,14 +35,15 @@ describe('CvReviewService', () => {
       getCvFileForUser: jest.fn(),
     };
 
-    configService = {
-      get: jest.fn().mockReturnValue('test-openai-key'),
+    cvReviewProvider = {
+      providerName: 'openai:gpt-5.5',
+      generateReview: jest.fn(),
     };
 
     service = new CvReviewService(
       prisma as unknown as PrismaService,
       cvService as unknown as CvService,
-      configService as unknown as ConfigService,
+      cvReviewProvider,
     );
   });
 
@@ -74,31 +75,16 @@ describe('CvReviewService', () => {
         'John Doe john@example.com +387 61 123 456 Summary Experience Education Skills Projects React Backend improved performance by 35%',
       ),
     });
-    const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        output: [
-          {
-            type: 'message',
-            content: [
-              {
-                type: 'output_text',
-                text: JSON.stringify({
-                  strengths: ['Strong contact details and clear role alignment.'],
-                  improvements: ['Expand recent experience bullets with more depth.'],
-                  suggestions: ['Add one more quantified project outcome.'],
-                  keywordMatches: ['React', 'Backend'],
-                  structureScore: 4,
-                  clarityScore: 4,
-                  keywordScore: 5,
-                  completenessScore: 4,
-                }),
-              },
-            ],
-          },
-        ],
-      }),
-    } as Response);
+    cvReviewProvider.generateReview.mockResolvedValue({
+      strengths: ['Strong contact details and clear role alignment.'],
+      improvements: ['Expand recent experience bullets with more depth.'],
+      suggestions: ['Add one more quantified project outcome.'],
+      keywordMatches: ['React', 'Backend'],
+      structureScore: 4,
+      clarityScore: 4,
+      keywordScore: 5,
+      completenessScore: 4,
+    });
     prisma.cvReview.create.mockImplementation(async ({ data }: any) => ({
       id: 'review-1',
       provider: data.provider,
@@ -124,10 +110,15 @@ describe('CvReviewService', () => {
     expect(result.providerResponseStorage).toBe('disabled');
     expect(result.requestTimeoutMs).toBe(45000);
     expect(prisma.cvReview.create).toHaveBeenCalled();
-    fetchMock.mockRestore();
+    expect(cvReviewProvider.generateReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: 'cv.pdf',
+        location: 'Sarajevo',
+      }),
+    );
   });
 
-  it('returns a friendly timeout message when the provider is too slow', async () => {
+  it('bubbles provider availability failures with a friendly message', async () => {
     const updatedAt = new Date('2026-05-31T10:00:00.000Z');
     prisma.cv.findUnique.mockResolvedValue({
       id: 'cv-1',
@@ -146,14 +137,14 @@ describe('CvReviewService', () => {
       buffer: Buffer.from('Summary Experience Education'),
     });
 
-    const abortError = new Error('The operation was aborted');
-    abortError.name = 'AbortError';
-    const fetchMock = jest.spyOn(global, 'fetch' as any).mockRejectedValue(abortError);
+    cvReviewProvider.generateReview.mockRejectedValue(
+      new ServiceUnavailableException(
+        'AI review took too long and was canceled. Reference code: CVR-TEST.',
+      ),
+    );
 
     await expect(service.createForUser('user-1')).rejects.toThrow(
       'AI review took too long and was canceled.',
     );
-
-    fetchMock.mockRestore();
   });
 });
