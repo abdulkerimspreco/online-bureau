@@ -43,7 +43,39 @@ export class MailService {
   }
 
   isConfigured(): boolean {
-    return this.hasMailtrapConfig() || this.readSettings() !== null;
+    return (
+      this.hasResendConfig() ||
+      this.hasMailtrapConfig() ||
+      this.readSettings() !== null
+    );
+  }
+
+  private hasResendConfig(): boolean {
+    return Boolean(this.configService.get<string>('RESEND_API_KEY')?.trim());
+  }
+
+  private getResendConfig() {
+    const apiKey = this.configService.get<string>('RESEND_API_KEY')?.trim();
+    const fromEmail =
+      this.configService.get<string>('RESEND_FROM_EMAIL')?.trim() ||
+      'onboarding@resend.dev';
+    const fromName =
+      this.configService.get<string>('RESEND_FROM_NAME')?.trim() ||
+      'Online Bureau';
+    const endpoint =
+      this.configService.get<string>('RESEND_API_URL')?.trim() ||
+      'https://api.resend.com/emails';
+
+    if (!apiKey) {
+      return null;
+    }
+
+    return {
+      apiKey,
+      fromEmail,
+      fromName,
+      endpoint,
+    };
   }
 
   private hasMailtrapConfig(): boolean {
@@ -156,6 +188,10 @@ export class MailService {
     text: string;
     html: string;
   }): Promise<boolean> {
+    if (await this.sendViaResend(options)) {
+      return true;
+    }
+
     if (await this.sendViaMailtrap(options)) {
       return true;
     }
@@ -179,6 +215,47 @@ export class MailService {
       return true;
     } catch (error) {
       console.error('[MAIL_DELIVERY_ERROR]', error);
+      return false;
+    }
+  }
+
+  private async sendViaResend(options: {
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+  }): Promise<boolean> {
+    const config = this.getResendConfig();
+
+    if (!config) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          from: `${config.fromName} <${config.fromEmail}>`,
+          to: [options.to],
+          subject: options.subject,
+          text: options.text,
+          html: options.html,
+        }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error('[RESEND_DELIVERY_ERROR]', response.status, responseText);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[RESEND_DELIVERY_ERROR]', error);
       return false;
     }
   }
