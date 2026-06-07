@@ -8,6 +8,7 @@ import {
   updateCvVisibility,
   uploadCv,
 } from "../api/cv/cv.api";
+import { getApiBaseUrl } from "../api/auth/axios";
 import type { CV } from "../api/cv/cv.types";
 import { formatBytes, formatDate } from "../utils/functionUtils";
 
@@ -207,7 +208,7 @@ export default function CvPage() {
                   </div>
 
                   <a
-                    href={`http://localhost:3000${cv.fileUrl}`}
+                    href={`${getApiBaseUrl()}${cv.fileUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     className="mt-4 inline-flex text-sm font-medium text-slate-900 underline underline-offset-4"
