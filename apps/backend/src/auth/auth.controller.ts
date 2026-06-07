@@ -33,12 +33,18 @@ interface AuthenticatedRequest extends Request {
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
-    private setAuthCookie(res: Response, accessToken: string) {
-        res.cookie('accessToken', accessToken, {
+    private getAuthCookieOptions() {
+        const isProduction = process.env.NODE_ENV === 'production';
+
+        return {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-        });
+            secure: isProduction,
+            sameSite: isProduction ? ('none' as const) : ('lax' as const),
+        };
+    }
+
+    private setAuthCookie(res: Response, accessToken: string) {
+        res.cookie('accessToken', accessToken, this.getAuthCookieOptions());
     }
 
     @RequestMapping({ path: 'register/job-seeker', method: RequestMethod.POST })
@@ -96,7 +102,7 @@ export class AuthController {
 
     @RequestMapping({ path: 'logout', method: RequestMethod.POST })
     logout(@Res({ passthrough: true }) res: Response) {
-        res.clearCookie('accessToken');
+        res.clearCookie('accessToken', this.getAuthCookieOptions());
         return { message: 'Logged out successfully' };
     }
 
@@ -108,7 +114,7 @@ export class AuthController {
         @Res({ passthrough: true }) res: Response,
     ) {
         const result = await this.authService.deleteAccount(req.user.id, dto);
-        res.clearCookie('accessToken');
+        res.clearCookie('accessToken', this.getAuthCookieOptions());
         return result;
     }
 }
